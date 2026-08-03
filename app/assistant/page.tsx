@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { creerMessageIA } from "../../lib/ia/assistant";
+import { creerRapportIA } from "../../lib/analyses/rapportIA";
 
 
 export default function Assistant(){
@@ -23,27 +23,63 @@ setChargement(true);
 
 
 
-const rapport = {
 
 
-profil:
+const mesures =
+
+JSON.parse(
+localStorage.getItem("mesures") || "[]"
+);
+
+
+
+
+
+const profil =
 
 JSON.parse(
 localStorage.getItem("profil") || "{}"
-),
+);
 
+
+
+
+
+const journal =
+
+JSON.parse(
+localStorage.getItem("journal") || "[]"
+);
+
+
+
+
+
+
+
+const rapport = {
+
+
+profil,
 
 
 glycemie:{
 
 
-tempsDansCible:67,
+tempsDansCible:
+"Analyse en cours",
 
-hyperglycemies:20,
 
-hypoglycemies:5,
+hyperglycemies:
+"Analyse en cours",
 
-score:65
+
+hypoglycemies:
+"Analyse en cours",
+
+
+score:
+"Analyse en cours"
 
 
 },
@@ -53,7 +89,23 @@ score:65
 stabilite:{
 
 
-variations:10
+variations:
+mesures.length
+
+
+},
+
+
+
+habitudes:{
+
+
+journalTotal:
+journal.length,
+
+
+dernierEvenements:
+journal.slice(-10)
 
 
 }
@@ -61,6 +113,7 @@ variations:10
 
 
 };
+
 
 
 
@@ -77,16 +130,21 @@ method:"POST",
 
 headers:{
 
+
 "Content-Type":"application/json"
+
 
 },
 
 
 body:JSON.stringify({
 
+
 question,
 
+
 rapport
+
 
 })
 
@@ -94,6 +152,7 @@ rapport
 }
 
 );
+
 
 
 
@@ -115,8 +174,8 @@ data.reponse
 setChargement(false);
 
 
-}
 
+}
 
 
 
@@ -126,13 +185,10 @@ setChargement(false);
 
 return (
 
-
 <main className="min-h-screen bg-blue-50 p-8">
 
 
-
 <div className="max-w-xl mx-auto bg-white rounded-2xl shadow p-8">
-
 
 
 <h1 className="text-3xl font-bold text-blue-600">
@@ -148,26 +204,17 @@ Pose une question sur tes données.
 
 
 
-
-
 <input
-
 
 className="mt-6 border rounded-xl p-3 w-full"
 
-
 placeholder="Ex : Pourquoi mon score est bas ?"
-
 
 value={question}
 
-
 onChange={(e)=>
-
 setQuestion(e.target.value)
-
 }
-
 
 />
 
@@ -178,12 +225,9 @@ setQuestion(e.target.value)
 
 <button
 
-
 onClick={envoyer}
 
-
 className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl"
-
 
 >
 
@@ -195,7 +239,6 @@ chargement
 :
 "Demander à Diabia"
 }
-
 
 
 </button>
@@ -215,9 +258,7 @@ reponse &&
 
 
 <p className="whitespace-pre-line">
-
 🤖 {reponse}
-
 </p>
 
 
@@ -228,14 +269,10 @@ reponse &&
 
 
 
-
-
 </div>
 
 
-
 </main>
-
 
 );
 
