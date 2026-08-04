@@ -13,6 +13,9 @@ import InsightsPanel from "./components/InsightsPanel";
 import JournalProfile from "./components/JournalProfile";
 import MetricCards from "./components/MetricCards";
 import ScoreCard from "./components/ScoreCard";
+import { STORAGE_KEYS } from "../../lib/storageKeys";
+import { normaliserJournal, normaliserMesures, normaliserProfil } from "../../lib/validation";
+import { lireValeurLocale } from "../../lib/storage";
 
 const SERVER_SNAPSHOT = JSON.stringify({
   mesures: "[]",
@@ -27,9 +30,9 @@ function subscribeToStorage(callback: () => void) {
 
 function readStorageSnapshot() {
   return JSON.stringify({
-    mesures: localStorage.getItem("mesures") || "[]",
-    profil: localStorage.getItem("profil") || "{}",
-    journal: localStorage.getItem("journal") || "[]",
+    mesures: lireValeurLocale(STORAGE_KEYS.mesures, "[]"),
+    profil: lireValeurLocale(STORAGE_KEYS.profil, "{}"),
+    journal: lireValeurLocale(STORAGE_KEYS.journal, "[]"),
   });
 }
 
@@ -53,17 +56,14 @@ function parseDashboardData(snapshot: string): {
   const raw = parseJson(snapshot, {}) as Partial<
     Record<"mesures" | "profil" | "journal", string>
   >;
-  const mesures = parseJson(raw.mesures || "[]", []);
-  const profil = parseJson(raw.profil || "{}", {});
-  const journal = parseJson(raw.journal || "[]", []);
+  const mesures = normaliserMesures(parseJson(raw.mesures || "[]", []));
+  const profil = normaliserProfil(parseJson(raw.profil || "{}", {}));
+  const journal = normaliserJournal(parseJson(raw.journal || "[]", []));
 
   return {
-    mesures: Array.isArray(mesures) ? (mesures as Mesure[]) : [],
-    profil:
-      profil && typeof profil === "object" && !Array.isArray(profil)
-        ? (profil as ProfilDiabia)
-        : {},
-    journal: Array.isArray(journal) ? (journal as JournalEntry[]) : [],
+    mesures,
+    profil,
+    journal,
   };
 }
 
@@ -81,9 +81,7 @@ export default function Dashboard() {
     () => analyserGlycemie(mesures, journal),
     [mesures, journal]
   );
-  const hasData = mesures.some((mesure) =>
-    Number.isFinite(Number(mesure.glycemie))
-  );
+  const hasData = analyse.nombreMesures > 0;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">

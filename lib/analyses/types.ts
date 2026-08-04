@@ -3,6 +3,7 @@ export type Mesure = {
   insuline?: number | string;
   date?: string;
   heure?: string;
+  timestamp?: string;
   note?: string;
 };
 
@@ -11,6 +12,7 @@ export type JournalEntry = {
   description?: string;
   heure?: string;
   date?: string;
+  timestamp?: string;
 };
 
 export type ProfilDiabia = {
@@ -21,6 +23,7 @@ export type ProfilDiabia = {
 };
 
 export type AnalyseBase = {
+  nombreMesures: number;
   moyenne: number;
   cible: number;
   hyper: number;
@@ -54,7 +57,7 @@ export type AnalyseBase = {
 };
 
 export type RapportDiabia = AnalyseBase & {
-  score: number;
+  score: number | null;
   message: string;
   resume: {
     positif: string[];
@@ -62,7 +65,7 @@ export type RapportDiabia = AnalyseBase & {
     alertes: string[];
   };
   explication: {
-    score: number;
+    score: number | null;
     positif: string[];
     problemes: string[];
     conseils: string[];

@@ -6,11 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js"
   },
   "dependencies": {
     "next": "16.2.12",
-    "openai": "^7.3.0",
     "papaparse": "^5.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",

@@ -1,157 +1,35 @@
-export function analyserHoraires(mesures:any[]) {
+import type { Mesure } from "./types";
 
-
-  if(!mesures || mesures.length === 0){
-
-    return {
-      message:"Pas assez de données."
-    };
-
+export function analyserHoraires(mesures: Mesure[]) {
+  if (mesures.length === 0) {
+    return { message: "Pas assez de données." };
   }
-
-
 
   let matin = 0;
   let midi = 0;
   let soir = 0;
   let nuit = 0;
 
+  mesures.forEach((mesure) => {
+    if (Number(mesure.glycemie) <= 180 || !mesure.heure) return;
 
-
-  mesures.forEach((mesure)=>{
-
-
-    const valeur =
-      Number(mesure.glycemie);
-
-
-
-    if(valeur <= 180){
-      return;
-    }
-
-
-
-    if(!mesure.heure){
-      return;
-    }
-
-
-
-    const heure =
-      Number(
-        mesure.heure.split(":")[0]
-      );
-
-
-
-    if(heure >= 6 && heure < 12){
-
-      matin++;
-
-    }
-
-    else if(heure >= 12 && heure < 18){
-
-      midi++;
-
-    }
-
-    else if(heure >=18 && heure <24){
-
-      soir++;
-
-    }
-
-    else {
-
-      nuit++;
-
-    }
-
-
+    const heure = Number(mesure.heure.split(":")[0]);
+    if (heure >= 6 && heure < 12) matin += 1;
+    else if (heure >= 12 && heure < 18) midi += 1;
+    else if (heure >= 18 && heure < 24) soir += 1;
+    else nuit += 1;
   });
 
-
-
-
-
   const periodes = [
+    { nom: "matin", valeur: matin },
+    { nom: "midi", valeur: midi },
+    { nom: "soir", valeur: soir },
+    { nom: "nuit", valeur: nuit },
+  ].sort((a, b) => b.valeur - a.valeur);
+  const principale = periodes[0];
+  const message = principale.valeur > 0
+    ? `Les hyperglycémies apparaissent principalement le ${principale.nom} (${principale.valeur} épisode(s) détecté(s)).`
+    : "Aucune période problématique détectée.";
 
-    {
-      nom:"matin",
-      valeur:matin
-    },
-
-    {
-      nom:"midi",
-      valeur:midi
-    },
-
-    {
-      nom:"soir",
-      valeur:soir
-    },
-
-    {
-      nom:"nuit",
-      valeur:nuit
-    }
-
-  ];
-
-
-
-
-
-  periodes.sort(
-    (a,b)=>
-    b.valeur-a.valeur
-  );
-
-
-
-
-
-  const principale =
-    periodes[0];
-
-
-
-
-
-  let message =
-  "Aucune période problématique détectée.";
-
-
-
-
-
-  if(principale.valeur > 0){
-
-
-    message =
-    `Les hyperglycémies apparaissent principalement le ${principale.nom} (${principale.valeur} épisode(s) détecté(s)).`;
-
-
-  }
-
-
-
-
-  return {
-
-    matin,
-
-    midi,
-
-    soir,
-
-    nuit,
-
-    message
-
-  };
-
-
+  return { matin, midi, soir, nuit, message };
 }

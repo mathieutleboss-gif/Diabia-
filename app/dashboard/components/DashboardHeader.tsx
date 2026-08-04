@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ROUTES } from "../../../lib/routes";
 
 type DashboardHeaderProps = {
   prenom?: string;
@@ -7,7 +8,7 @@ type DashboardHeaderProps = {
 
 function ActionIcon({ children }: { children: React.ReactNode }) {
   return (
-    <span className="grid size-9 place-items-center rounded-full bg-white/90 text-lg text-slate-900 shadow-sm">
+    <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-white/90 text-lg text-slate-900 shadow-sm">
       {children}
     </span>
   );
@@ -48,21 +49,21 @@ export default function DashboardHeader({
 
         <nav className="grid grid-cols-3 gap-2 sm:flex" aria-label="Actions du tableau de bord">
           <Link
-            href="/import"
+            href={ROUTES.import}
             className="flex items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-blue-50 sm:px-4"
           >
             <ActionIcon>↥</ActionIcon>
             Importer
           </Link>
           <Link
-            href="/add-measure"
+            href={ROUTES.ajoutMesure}
             className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/15 sm:px-4"
           >
             <ActionIcon>＋</ActionIcon>
             Mesure
           </Link>
           <Link
-            href="/journal"
+            href={ROUTES.journal}
             className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/15 sm:px-4"
           >
             <ActionIcon>✎</ActionIcon>

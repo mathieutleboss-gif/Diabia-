@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RapportDiabia } from "../../../lib/analyses/types";
+import { ROUTES } from "../../../lib/routes";
 
 type InsightsPanelProps = {
   analyse: RapportDiabia;
@@ -24,7 +25,7 @@ function InsightGroup({
   return (
     <div className={`rounded-3xl border ${styles.border} bg-white/70 p-5`}>
       <div className="flex items-center gap-3">
-        <span className={`grid size-9 place-items-center rounded-xl text-sm font-bold ${styles.iconStyle}`}>
+        <span aria-hidden="true" className={`grid size-9 place-items-center rounded-xl text-sm font-bold ${styles.iconStyle}`}>
           {styles.icon}
         </span>
         <h3 className="font-semibold text-slate-900">{title}</h3>
@@ -54,7 +55,7 @@ export default function InsightsPanel({ analyse, hasData }: InsightsPanelProps) 
         <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">
           Enregistre quelques mesures pour permettre à Diabia d’identifier les tendances, les points positifs et les périodes à surveiller.
         </p>
-        <Link href="/import" className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">
+        <Link href={ROUTES.import} className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">
           Importer des données
         </Link>
       </section>
@@ -71,7 +72,7 @@ export default function InsightsPanel({ analyse, hasData }: InsightsPanelProps) 
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Ce que tes données racontent</h2>
           <p className="mt-1 text-sm text-slate-500">Observations automatiques, informatives et non médicales.</p>
         </div>
-        <Link href="/assistant" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-700">
+        <Link href={ROUTES.assistant} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-700">
           Demander à Diabia <span aria-hidden>→</span>
         </Link>
       </div>
@@ -91,7 +92,7 @@ export default function InsightsPanel({ analyse, hasData }: InsightsPanelProps) 
 
         <div className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
           <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-xl bg-slate-200 text-sm font-bold text-slate-700">
+            <span aria-hidden="true" className="grid size-9 place-items-center rounded-xl bg-slate-200 text-sm font-bold text-slate-700">
               ≋
             </span>
             <h3 className="font-semibold text-slate-900">Analyse détaillée</h3>

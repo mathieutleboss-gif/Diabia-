@@ -1,22 +1,81 @@
 import { NextResponse } from "next/server";
 import { creerPromptDiabia } from "../../../lib/ia/promptDiabia";
 
-const OLLAMA_URL = "http://localhost:11434/api/chat";
-const OLLAMA_MODEL = "llama3.2:3b";
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/chat";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
+const MAX_QUESTION_LENGTH = 1_000;
+const MAX_REQUEST_SIZE = 250_000;
+const RATE_LIMIT_WINDOW = 60_000;
+const RATE_LIMIT_MAX = 10;
+
+type RateLimitEntry = { count: number; resetAt: number };
+const rateLimits = new Map<string, RateLimitEntry>();
 
 type AssistantRequest = {
   question?: string;
   rapport?: unknown;
 };
 
+function obtenirAdresseClient(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+}
+
+function estLimite(request: Request): boolean {
+  const maintenant = Date.now();
+  if (rateLimits.size > 1_000) {
+    for (const [adresse, entree] of rateLimits) {
+      if (entree.resetAt <= maintenant) rateLimits.delete(adresse);
+    }
+  }
+  const adresse = obtenirAdresseClient(request);
+  const entree = rateLimits.get(adresse);
+
+  if (!entree || entree.resetAt <= maintenant) {
+    rateLimits.set(adresse, { count: 1, resetAt: maintenant + RATE_LIMIT_WINDOW });
+    return false;
+  }
+
+  entree.count += 1;
+  return entree.count > RATE_LIMIT_MAX;
+}
+
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as AssistantRequest;
+    const origin = request.headers.get("origin");
+    if (origin && origin !== new URL(request.url).origin) {
+      return NextResponse.json({ error: "Origine de requête non autorisée." }, { status: 403 });
+    }
+
+    const tailleAnnoncee = Number(request.headers.get("content-length") || 0);
+    if (tailleAnnoncee > MAX_REQUEST_SIZE) {
+      return NextResponse.json({ error: "La requête est trop volumineuse." }, { status: 413 });
+    }
+
+    if (estLimite(request)) {
+      return NextResponse.json(
+        { error: "Trop de demandes successives. Réessaie dans une minute." },
+        { status: 429 }
+      );
+    }
+
+    const contenu = await request.text();
+    if (contenu.length > MAX_REQUEST_SIZE) {
+      return NextResponse.json({ error: "La requête est trop volumineuse." }, { status: 413 });
+    }
+
+    const body = JSON.parse(contenu) as AssistantRequest;
     const question = body.question?.trim();
     const rapport = body.rapport;
 
     if (!question) {
       return NextResponse.json({ error: "Écris une question avant de lancer l’analyse." }, { status: 400 });
+    }
+
+    if (question.length > MAX_QUESTION_LENGTH) {
+      return NextResponse.json(
+        { error: "La question est trop longue (1 000 caractères maximum)." },
+        { status: 400 }
+      );
     }
 
     if (!rapport || typeof rapport !== "object") {
@@ -27,6 +86,7 @@ export async function POST(request: Request) {
     const ollamaResponse = await fetch(OLLAMA_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,

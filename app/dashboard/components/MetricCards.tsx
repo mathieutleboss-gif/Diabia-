@@ -31,7 +31,7 @@ function MetricCard({ metric, hasData }: { metric: Metric; hasData: boolean }) {
             </span>
           </p>
         </div>
-        <span className={`grid size-11 place-items-center rounded-2xl text-xl ${metric.track}`}>
+        <span aria-hidden="true" className={`grid size-11 place-items-center rounded-2xl text-xl ${metric.track}`}>
           {metric.icon}
         </span>
       </div>

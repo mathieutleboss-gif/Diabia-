@@ -7,34 +7,26 @@ import { creerResume } from "./analyses/resume";
 import { expliquerScore } from "./analyses/explicationScore";
 import { analyserJournal } from "./analyses/journalAnalyse";
 import { genererInsights } from "./analyses/insights";
-import type {
-  AnalyseBase,
-  JournalEntry,
-  Mesure,
-  RapportDiabia,
-} from "./analyses/types";
-
-function lireJournalLocal(): JournalEntry[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const valeur = JSON.parse(localStorage.getItem("journal") || "[]");
-    return Array.isArray(valeur) ? valeur : [];
-  } catch {
-    return [];
-  }
-}
+import { trierMesuresChronologiquement } from "./dates";
+import type { AnalyseBase, JournalEntry, Mesure, RapportDiabia } from "./analyses/types";
 
 export function analyserGlycemie(
   mesures: Mesure[],
-  journal: JournalEntry[] = lireJournalLocal()
+  journal: JournalEntry[] = []
 ): RapportDiabia {
-  const stats = statistiques(mesures);
-  const variations = analyserVariations(mesures);
-  const horaires = analyserHoraires(mesures);
-  const tendance = analyserTendance(mesures);
+  const mesuresValides = mesures.filter((mesure) => {
+    if (typeof mesure.glycemie === "string" && !mesure.glycemie.trim()) return false;
+    const valeur = Number(mesure.glycemie);
+    return Number.isFinite(valeur) && valeur > 0;
+  });
+  const mesuresOrdonnees = trierMesuresChronologiquement(mesuresValides);
+  const stats = statistiques(mesuresOrdonnees);
+  const variations = analyserVariations(mesuresOrdonnees);
+  const horaires = analyserHoraires(mesuresOrdonnees);
+  const tendance = analyserTendance(mesuresOrdonnees);
 
   const baseAnalyse: AnalyseBase = {
+    nombreMesures: mesuresOrdonnees.length,
     moyenne: stats.moyenne,
     cible: stats.cible,
     hyper: stats.hyper,
@@ -47,7 +39,7 @@ export function analyserGlycemie(
   };
 
   const resume = creerResume(baseAnalyse);
-  const analyseJournal = analyserJournal(mesures, journal);
+  const analyseJournal = analyserJournal(mesuresOrdonnees, journal);
   const score = calculerScore(baseAnalyse);
   const explication = expliquerScore(baseAnalyse, score);
   const insights = genererInsights(baseAnalyse);

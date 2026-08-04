@@ -1,11 +1,15 @@
-export function analyserCSV(lignes: any[]) {
+import type { Mesure } from "./analyses/types";
+import { obtenirTimestamp } from "./dates";
 
-  return lignes.map((ligne) => {
+type CsvRow = Record<string, unknown>;
+
+export function analyserCSV(lignes: CsvRow[]): Mesure[] {
+
+  return lignes.flatMap((ligne) => {
 
     const glycemie =
       ligne.glycemie ||
       ligne.glucose ||
-      ligne.Glucose ||
       ligne.Glucose ||
       ligne.sg ||
       ligne.SG ||
@@ -19,24 +23,31 @@ export function analyserCSV(lignes: any[]) {
       0;
 
 
-    const date =
+    const dateBrute =
       ligne.date ||
       ligne.Date ||
       new Date().toLocaleDateString();
 
+    const valeurGlycemie = Number(glycemie);
+    if (!glycemie || !Number.isFinite(valeurGlycemie) || valeurGlycemie <= 0) return [];
+    const valeurInsuline = Number(insuline);
 
+    const date = String(dateBrute);
+    const timestamp = obtenirTimestamp({ date });
 
-    return {
+    return [{
 
-      glycemie: Number(glycemie),
+      glycemie: valeurGlycemie,
 
-      insuline: Number(insuline),
+      insuline: Number.isFinite(valeurInsuline) && valeurInsuline >= 0 ? valeurInsuline : 0,
 
       date,
 
+      ...(timestamp !== null ? { timestamp: new Date(timestamp).toISOString() } : {}),
+
       note: "Import CSV"
 
-    };
+    }];
 
   });
 
