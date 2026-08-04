@@ -1,98 +1,127 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { creerPromptDiabia } from "../../../lib/ia/promptDiabia";
 
+const OLLAMA_URL = "http://localhost:11434/api/chat";
+const OLLAMA_MODEL = "llama3.2:3b";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-
+type AssistantRequest = {
+  question?: string;
+  rapport?: unknown;
+};
 
 export async function POST(request: Request) {
-
-
   try {
+    const body = (await request.json()) as AssistantRequest;
 
-
-    const body = await request.json();
-
-
-    const question = body.question;
+    const question = body.question?.trim();
     const rapport = body.rapport;
 
-
-
-    const completion = await openai.chat.completions.create({
-
-      model: "gpt-4.1-mini",
-
-      messages: [
-
+    if (!question) {
+      return NextResponse.json(
         {
-          role: "system",
-          content:
-          `
-          Tu es Diabia, un assistant d'analyse de données de glycémie.
+          error: "Écris une question avant de lancer l’analyse.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
-          Tu aides à comprendre les données.
-          Tu expliques simplement.
-          Tu ne modifies jamais un traitement et tu ne donnes pas de dose d'insuline.
+    if (!rapport || typeof rapport !== "object") {
+      return NextResponse.json(
+        {
+          error: "Le rapport Diabia est absent ou incorrect.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
-          Structure tes réponses :
+    const prompt = creerPromptDiabia(question, rapport);
 
-          1) Ce que tu observes
-          2) Ce que cela peut signifier
-          3) Une piste générale d'amélioration
-          `
+    const ollamaResponse = await fetch(OLLAMA_URL, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+
+        stream: false,
+
+        keep_alive: "10m",
+
+        options: {
+          temperature: 0.1,
+          num_predict: 300,
         },
 
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es Diabia. Tu expliques uniquement les données fournies, sans inventer et sans modifier de traitement.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
 
+    if (!ollamaResponse.ok) {
+      const details = await ollamaResponse.text();
+
+      console.error("Erreur Ollama :", details);
+
+      return NextResponse.json(
         {
-          role: "user",
-          content:
-
-          `
-          Données utilisateur :
-
-          ${JSON.stringify(rapport)}
-
-
-          Question :
-
-          ${question}
-
-          `
+          error:
+            "Ollama n’a pas réussi à répondre. Vérifie qu’Ollama est ouvert et que llama3.2:3b est installé.",
+        },
+        {
+          status: 502,
         }
+      );
+    }
 
-      ]
+    const data = (await ollamaResponse.json()) as {
+      message?: {
+        content?: string;
+      };
+    };
 
-    });
+    const reponse = data.message?.content?.trim();
 
-
+    if (!reponse) {
+      return NextResponse.json(
+        {
+          error: "Ollama a répondu, mais aucun texte n’a été généré.",
+        },
+        {
+          status: 502,
+        }
+      );
+    }
 
     return NextResponse.json({
-
-      reponse:
-      completion.choices[0].message.content
-
+      reponse,
     });
+  } catch (error) {
+    console.error("Erreur assistant Diabia :", error);
 
-
-
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de contacter l’IA locale. Vérifie qu’Ollama fonctionne sur ton Mac.",
+      },
+      {
+        status: 500,
+      }
+    );
   }
-
-  catch(error:any){
-
-    console.error("ERREUR IA :", error);
-
-    return NextResponse.json({
-
-      reponse:
-      "Erreur IA : " + error.message
-
-    });
-
-}
-
-
 }
