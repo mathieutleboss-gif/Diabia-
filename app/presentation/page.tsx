@@ -1,40 +1,14 @@
 import Link from "next/link";
+import { GlassPanel, PageHero, PageShell } from "../components/PageShell";
 
 export default function Presentation() {
-
   return (
-    <main className="min-h-screen bg-blue-50 p-8">
-
-      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow p-8">
-
-        <h1 className="text-4xl font-bold text-blue-600">
-          Bienvenue sur Diabia
-        </h1>
-
-        <p className="mt-6">
-          Diabia analyse vos données de diabète pour
-          vous aider à comprendre vos tendances.
-        </p>
-
-        <h2 className="text-xl font-bold mt-6">
-          Fonctionnalités :
-        </h2>
-
-        <ul className="mt-4">
-          <li>📊 Analyse des données</li>
-          <li>📈 Suivi des tendances</li>
-          <li>🤖 Explications intelligentes</li>
-        </ul>
-
-        <Link
-          href="/import"
-          className="inline-block mt-8 bg-blue-600 text-white px-6 py-3 rounded-xl"
-        >
-          Voir mon analyse
-        </Link>
-
+    <PageShell>
+      <PageHero eyebrow="À propos" title="Bienvenue sur Diabia" description="Un espace personnel conçu pour rendre les données glycémiques plus simples à explorer et à comprendre." backHref="/" />
+      <div className="grid gap-5 md:grid-cols-3">
+        {[["01", "Importer", "Charge un export CSV ou ajoute une mesure manuellement."], ["02", "Comprendre", "Explore ton score, tes périodes hors cible et tes variations."], ["03", "Questionner", "Demande à l’assistant local d’expliquer les résultats disponibles."]].map(([number, title, text]) => <GlassPanel key={number}><span className="text-xs font-semibold tracking-[0.2em] text-blue-600">{number}</span><h2 className="mt-4 text-2xl font-semibold text-slate-900">{title}</h2><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></GlassPanel>)}
       </div>
-
-    </main>
+      <div className="mt-6 rounded-[2rem] bg-slate-950 p-7 text-white sm:flex sm:items-center sm:justify-between"><div><h2 className="text-2xl font-semibold">Prêt à découvrir tes tendances ?</h2><p className="mt-2 text-sm text-slate-400">Commence avec un fichier CSV ou quelques mesures manuelles.</p></div><Link href="/import" className="mt-5 inline-flex rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 sm:mt-0">Commencer</Link></div>
+    </PageShell>
   );
 }

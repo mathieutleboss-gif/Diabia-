@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import type { ProfilDiabia } from "../../lib/analyses/types";
+import { FormField, GlassPanel, PageHero, PageShell, fieldClassName, primaryButtonClassName } from "../components/PageShell";
 
 const EMPTY_PROFILE = "{}";
 
@@ -36,14 +37,11 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
   }
 
   return (
-    <div className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow">
-      <h1 className="text-3xl font-bold text-blue-600">Profil Diabia</h1>
-      <p className="mt-4">Ces informations permettent à Diabia de personnaliser ses analyses.</p>
-
-      <label className="mt-6 block font-bold" htmlFor="diabete">Type de diabète</label>
+    <GlassPanel className="space-y-5">
+      <FormField label="Type de diabète">
       <select
         id="diabete"
-        className="mt-2 w-full rounded-xl border p-3"
+        className={fieldClassName}
         value={profil.diabete || ""}
         onChange={(event) => setProfil({ ...profil, diabete: event.target.value })}
       >
@@ -52,11 +50,11 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
         <option>Type 2</option>
         <option>Autre</option>
       </select>
-
-      <label className="mt-6 block font-bold" htmlFor="appareil">Appareil utilisé</label>
+      </FormField>
+      <FormField label="Appareil utilisé">
       <select
         id="appareil"
-        className="mt-2 w-full rounded-xl border p-3"
+        className={fieldClassName}
         value={profil.appareil || ""}
         onChange={(event) => setProfil({ ...profil, appareil: event.target.value })}
       >
@@ -65,11 +63,11 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
         <option>Pompe à insuline</option>
         <option>Stylo à insuline</option>
       </select>
-
-      <label className="mt-6 block font-bold" htmlFor="objectif">Objectif principal</label>
+      </FormField>
+      <FormField label="Objectif principal">
       <select
         id="objectif"
-        className="mt-2 w-full rounded-xl border p-3"
+        className={fieldClassName}
         value={profil.objectif || ""}
         onChange={(event) => setProfil({ ...profil, objectif: event.target.value })}
       >
@@ -79,15 +77,15 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
         <option>Réduire les hypoglycémies</option>
         <option>Mieux comprendre mes variations</option>
       </select>
-
+      </FormField>
       <button
         type="button"
         onClick={sauvegarder}
-        className="mt-8 rounded-xl bg-blue-600 px-6 py-3 text-white"
+        className={primaryButtonClassName}
       >
         Enregistrer
       </button>
-    </div>
+    </GlassPanel>
   );
 }
 
@@ -99,8 +97,9 @@ export default function Profile() {
   );
 
   return (
-    <main className="min-h-screen bg-blue-50 p-8">
+    <PageShell width="max-w-4xl">
+      <PageHero eyebrow="Personnalisation" title="Mon profil" description="Ces informations permettent à Diabia de contextualiser ses explications sans quitter ton navigateur." />
       <ProfileForm key={snapshot} initialProfile={parseProfile(snapshot)} />
-    </main>
+    </PageShell>
   );
 }
