@@ -1,71 +1,13 @@
-export function calculerScore(analyse:any){
+import type { AnalyseBase } from "./types";
 
+export function calculerScore(analyse: AnalyseBase): number {
+  let score = 100;
+  score -= Math.max(0, 70 - analyse.cible) * 0.5;
+  score -= analyse.hyper * 0.35;
+  score -= analyse.hypo * 2;
+  score -= (analyse.variations?.nombre || 0) * 0.25;
 
-  let score = 0;
+  if (analyse.cible >= 85) score += 5;
 
-
-
-  // 60% du score vient du temps dans la cible
-
-  score += analyse.cible * 0.6;
-
-
-
-  // 20% vient de l'absence d'hyperglycémies
-
-  score += (100 - analyse.hyper) * 0.2;
-
-
-
-  // 10% vient de l'absence d'hypoglycémies
-
-  score += (100 - analyse.hypo) * 0.1;
-
-
-
-  // 10% vient de la stabilité
-
-  let stabilite = 100;
-
-
-  if(analyse.variations?.nombre){
-
-    stabilite -= analyse.variations.nombre * 2;
-
-  }
-
-
-  if(stabilite < 0){
-
-    stabilite = 0;
-
-  }
-
-
-
-  score += stabilite * 0.1;
-
-
-
-
-  // Limites
-
-  if(score < 0){
-
-    score = 0;
-
-  }
-
-
-  if(score > 100){
-
-    score = 100;
-
-  }
-
-
-
-  return Math.round(score);
-
-
+  return Math.max(0, Math.min(100, Math.round(score)));
 }

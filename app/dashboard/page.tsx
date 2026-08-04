@@ -1,529 +1,128 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-
-import Gauge from "../components/Gauge";
+import { useMemo, useSyncExternalStore } from "react";
 import { analyserGlycemie } from "../../lib/analyse";
+import type {
+  JournalEntry,
+  Mesure,
+  ProfilDiabia,
+} from "../../lib/analyses/types";
+import DashboardHeader from "./components/DashboardHeader";
+import GlucoseChart from "./components/GlucoseChart";
+import InsightsPanel from "./components/InsightsPanel";
+import JournalProfile from "./components/JournalProfile";
+import MetricCards from "./components/MetricCards";
+import ScoreCard from "./components/ScoreCard";
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from "recharts";
+const SERVER_SNAPSHOT = JSON.stringify({
+  mesures: "[]",
+  profil: "{}",
+  journal: "[]",
+});
 
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
 
+function readStorageSnapshot() {
+  return JSON.stringify({
+    mesures: localStorage.getItem("mesures") || "[]",
+    profil: localStorage.getItem("profil") || "{}",
+    journal: localStorage.getItem("journal") || "[]",
+  });
+}
 
-export default function Dashboard(){
+function getServerSnapshot() {
+  return SERVER_SNAPSHOT;
+}
 
+function parseJson(value: string, fallback: unknown) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
 
-  const [mesures,setMesures] = useState<any[]>([]);
-  const [profil,setProfil] = useState<any>({});
-  const [journal,setJournal] = useState<any[]>([]);
+function parseDashboardData(snapshot: string): {
+  mesures: Mesure[];
+  profil: ProfilDiabia;
+  journal: JournalEntry[];
+} {
+  const raw = parseJson(snapshot, {}) as Partial<
+    Record<"mesures" | "profil" | "journal", string>
+  >;
+  const mesures = parseJson(raw.mesures || "[]", []);
+  const profil = parseJson(raw.profil || "{}", {});
+  const journal = parseJson(raw.journal || "[]", []);
 
+  return {
+    mesures: Array.isArray(mesures) ? (mesures as Mesure[]) : [],
+    profil:
+      profil && typeof profil === "object" && !Array.isArray(profil)
+        ? (profil as ProfilDiabia)
+        : {},
+    journal: Array.isArray(journal) ? (journal as JournalEntry[]) : [],
+  };
+}
 
-
-  useEffect(()=>{
-
-
-    const data =
-    JSON.parse(
-      localStorage.getItem("mesures") || "[]"
-    );
-
-
-    const profilData =
-    JSON.parse(
-      localStorage.getItem("profil") || "{}"
-    );
-
-
-    const journalData =
-    JSON.parse(
-      localStorage.getItem("journal") || "[]"
-    );
-
-
-
-    setMesures(data);
-    setProfil(profilData);
-    setJournal(journalData);
-
-
-
-  },[]);
-
-
-
-
-
-
-  const analyse =
-  analyserGlycemie(mesures);
-
-
-
-
-
-  const stabilite =
-  Math.max(
-    0,
-    Math.min(
-      100,
-      analyse.score || analyse.cible || 0
-    )
+export default function Dashboard() {
+  const snapshot = useSyncExternalStore(
+    subscribeToStorage,
+    readStorageSnapshot,
+    getServerSnapshot
+  );
+  const { mesures, profil, journal } = useMemo(
+    () => parseDashboardData(snapshot),
+    [snapshot]
+  );
+  const analyse = useMemo(
+    () => analyserGlycemie(mesures, journal),
+    [mesures, journal]
+  );
+  const hasData = mesures.some((mesure) =>
+    Number.isFinite(Number(mesure.glycemie))
   );
 
-
-
-
-
-
-
-return (
-
-<main className="min-h-screen bg-blue-50 p-8">
-
-
-
-<h1 className="text-4xl font-bold text-blue-600">
-Tableau de bord Diabia
-</h1>
-
-
-
-
-
-
-<div className="mt-6 flex gap-4 flex-wrap">
-
-
-<Link
-href="/import"
-className="bg-blue-600 text-white px-6 py-3 rounded-xl"
->
-Importer CSV
-</Link>
-
-
-
-<Link
-href="/journal"
-className="bg-green-600 text-white px-6 py-3 rounded-xl"
->
-Journal
-</Link>
-
-
-
-<Link
-href="/profile"
-className="bg-gray-600 text-white px-6 py-3 rounded-xl"
->
-Profil
-</Link>
-
-
-</div>
-
-
-
-
-
-
-
-
-<div className="grid md:grid-cols-3 gap-6 mt-8">
-
-
-<Gauge
-titre="⭐ Stabilité Diabia"
-valeur={stabilite}
-/>
-
-
-
-<Gauge
-titre="🎯 Temps dans la cible"
-valeur={analyse.cible || 0}
-/>
-
-
-
-<Gauge
-titre="🔴 Hyperglycémies"
-valeur={analyse.hyper || 0}
-/>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div className="bg-white rounded-2xl shadow p-6 mt-8">
-
-
-<h2 className="text-2xl font-bold">
-Analyse Diabia 🤖
-</h2>
-
-
-
-<p className="mt-4 whitespace-pre-line">
-{analyse.message}
-</p>
-
-
-
-
-
-
-
-<div className="grid md:grid-cols-3 gap-4 mt-6">
-
-
-
-<div className="bg-green-50 rounded-xl p-4">
-
-<h3 className="font-bold text-green-700">
-🟢 Points positifs
-</h3>
-
-
-{
-analyse.explication?.positif?.map(
-(item:string,index:number)=>(
-
-<p
-key={index}
-className="mt-2"
->
-{item}
-</p>
-
-))
-}
-
-
-
-</div>
-
-
-
-
-
-
-
-<div className="bg-orange-50 rounded-xl p-4">
-
-
-<h3 className="font-bold text-orange-700">
-🟠 À améliorer
-</h3>
-
-
-{
-analyse.explication?.problemes?.map(
-(item:string,index:number)=>(
-
-<p
-key={index}
-className="mt-2"
->
-{item}
-</p>
-
-))
-}
-
-
-
-</div>
-
-
-
-
-
-
-
-
-<div className="bg-blue-50 rounded-xl p-4">
-
-
-<h3 className="font-bold text-blue-700">
-💡 Ce que Diabia remarque
-</h3>
-
-
-
-{
-analyse.explication?.conseils?.map(
-(item:string,index:number)=>(
-
-<p
-key={index}
-className="mt-2"
->
-{item}
-</p>
-
-))
-}
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div className="bg-white rounded-2xl shadow p-6 mt-8">
-
-
-<h2 className="text-2xl font-bold">
-🤖 Ce que Diabia a découvert
-</h2>
-
-
-
-<p className="mt-4 whitespace-pre-line">
-
-{
-analyse.journal?.message ||
-
-"Diabia analyse encore tes habitudes."
-}
-
-</p>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div className="bg-white rounded-2xl shadow p-6 mt-8">
-
-
-<h2 className="text-2xl font-bold">
-📒 Journal récent
-</h2>
-
-
-
-
-
-{
-
-journal.length === 0 ?
-
-
-<p className="mt-4">
-Aucun événement enregistré.
-</p>
-
-
-:
-
-
-journal
-.slice(-5)
-.reverse()
-.map(
-(item:any,index:number)=>(
-
-
-
-<div
-key={index}
-className="mt-4 p-4 bg-blue-50 rounded-xl"
->
-
-
-
-<p className="font-bold">
-
-
-{
-item.type === "Repas"
-?
-"🍽️"
-:
-item.type === "Insuline"
-?
-"💉"
-:
-"🏃"
-}
-
-
-{" "}
-
-{item.type}
-
-
-</p>
-
-
-
-<p>
-{item.heure} - {item.description}
-</p>
-
-
-
-</div>
-
-
-))
-
-
-}
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div className="bg-white rounded-2xl shadow p-6 mt-8">
-
-
-<h2 className="text-xl font-bold">
-👤 Mon profil
-</h2>
-
-
-
-<p>
-Diabète :
-{profil.diabete || " Non renseigné"}
-</p>
-
-
-
-<p>
-Appareil :
-{profil.appareil || " Non renseigné"}
-</p>
-
-
-
-<p>
-Objectif :
-{profil.objectif || " Non renseigné"}
-</p>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div className="bg-white rounded-2xl shadow p-6 mt-8">
-
-
-<h2 className="text-xl font-bold">
-📈 Evolution glycémie
-</h2>
-
-
-
-
-<div className="h-64 mt-6">
-
-
-<ResponsiveContainer
-width="100%"
-height="100%"
->
-
-
-<LineChart data={mesures}>
-
-
-<CartesianGrid />
-
-
-<XAxis dataKey="date"/>
-
-
-<YAxis />
-
-
-<Tooltip />
-
-
-<Line
-type="monotone"
-dataKey="glycemie"
-/>
-
-
-</LineChart>
-
-
-</ResponsiveContainer>
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-</main>
-
-);
-
-
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,0.13),transparent_34%),radial-gradient(circle_at_85%_0%,rgba(139,92,246,0.10),transparent_28%)]" />
+
+      <div className="relative mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-7 lg:px-10 lg:py-10">
+        <DashboardHeader
+          prenom={profil.prenom}
+          nombreMesures={mesures.length}
+        />
+
+        <section className="grid gap-5 xl:grid-cols-[0.95fr_1.25fr]">
+          <ScoreCard
+            score={analyse.score}
+            moyenne={analyse.moyenne}
+            minimum={analyse.minimum}
+            maximum={analyse.maximum}
+            hasData={hasData}
+          />
+          <GlucoseChart mesures={mesures} />
+        </section>
+
+        <MetricCards
+          cible={analyse.cible}
+          hyper={analyse.hyper}
+          hypo={analyse.hypo}
+          variations={analyse.variations.nombre}
+          hasData={hasData}
+        />
+
+        <InsightsPanel analyse={analyse} hasData={hasData} />
+
+        <JournalProfile journal={journal} profil={profil} />
+
+        <footer className="flex flex-col gap-2 px-2 pb-3 text-xs leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>Les analyses Diabia sont informatives et ne remplacent pas un avis médical.</p>
+          <p>Les données affichées restent stockées dans ce navigateur.</p>
+        </footer>
+      </div>
+    </main>
+  );
 }

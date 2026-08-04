@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { creerMessageIA } from "../../lib/ia/assistant";
 
 
 export default function Assistant(){
