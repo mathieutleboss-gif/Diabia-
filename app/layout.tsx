@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Header from "./components/Header";
+import StorageMigration from "./components/StorageMigration";
 
 export const metadata: Metadata = {
   title: "Diabia — Comprendre sa glycémie",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
 
   <Header />
+  <StorageMigration />
 
   {children}
 

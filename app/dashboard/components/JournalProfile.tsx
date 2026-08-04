@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { JournalEntry, ProfilDiabia } from "../../../lib/analyses/types";
+import { ROUTES } from "../../../lib/routes";
 
 type JournalProfileProps = {
   journal: JournalEntry[];
@@ -37,12 +38,12 @@ export default function JournalProfile({ journal, profil }: JournalProfileProps)
   return (
     <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
       <article className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_55px_-34px_rgba(15,23,42,0.4)] sm:p-7">
-        <SectionHeading eyebrow="Contexte" title="Journal récent" href="/journal" linkLabel="Ajouter" />
+        <SectionHeading eyebrow="Contexte" title="Journal récent" href={ROUTES.journal} linkLabel="Ajouter" />
         <div className="mt-6 space-y-3">
           {recents.length ? (
             recents.map((item, index) => (
               <div key={`${item.date}-${item.heure}-${index}`} className="flex items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3.5">
-                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-lg shadow-sm">
+                <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-lg shadow-sm">
                   {eventIcons[item.type || ""] || "•"}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -66,7 +67,7 @@ export default function JournalProfile({ journal, profil }: JournalProfileProps)
       <article className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_55px_-34px_rgba(15,23,42,0.4)] sm:p-7">
         <div className="absolute -right-16 -top-12 size-44 rounded-full bg-violet-100/80 blur-3xl" />
         <div className="relative">
-          <SectionHeading eyebrow="Personnalisation" title="Mon profil" href="/profile" linkLabel="Modifier" />
+          <SectionHeading eyebrow="Personnalisation" title="Mon profil" href={ROUTES.profil} linkLabel="Modifier" />
           <dl className="mt-6 space-y-3">
             {profileItems.map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-slate-100 bg-white/70 px-4 py-3.5">

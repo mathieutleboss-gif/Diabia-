@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ROUTES } from "../../lib/routes";
 
 export function PageShell({ children, width = "max-w-6xl" }: { children: React.ReactNode; width?: string }) {
   return (
@@ -11,7 +12,7 @@ export function PageShell({ children, width = "max-w-6xl" }: { children: React.R
   );
 }
 
-export function PageHero({ eyebrow, title, description, backHref = "/dashboard" }: { eyebrow: string; title: string; description: string; backHref?: string }) {
+export function PageHero({ eyebrow, title, description, backHref = ROUTES.dashboard }: { eyebrow: string; title: string; description: string; backHref?: string }) {
   return (
     <header className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
       <div>

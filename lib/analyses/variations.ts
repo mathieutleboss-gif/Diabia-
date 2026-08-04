@@ -1,133 +1,56 @@
-export function analyserVariations(mesures:any[]) {
+import type { Mesure } from "./types";
 
+type Variation = {
+  difference: number;
+  avant: number;
+  apres: number;
+  date?: string;
+  heure?: string;
+};
 
-  if(!mesures || mesures.length < 2){
-
+export function analyserVariations(mesures: Mesure[]) {
+  if (mesures.length < 2) {
     return {
-      nombre:0,
-      message:"Pas assez de mesures pour analyser les variations."
+      nombre: 0,
+      message: "Pas assez de mesures pour analyser les variations.",
     };
-
   }
 
+  const variations: Variation[] = [];
 
+  for (let index = 1; index < mesures.length; index += 1) {
+    const avant = Number(mesures[index - 1].glycemie);
+    const apres = Number(mesures[index].glycemie);
+    const difference = apres - avant;
 
-  let variations:any[] = [];
-
-
-
-  for(let i = 1; i < mesures.length; i++){
-
-
-    const avant =
-      Number(mesures[i-1].glycemie);
-
-
-
-    const apres =
-      Number(mesures[i].glycemie);
-
-
-
-    const difference =
-      apres - avant;
-
-
-
-    if(Math.abs(difference) >= 50){
-
-
+    if (Math.abs(difference) >= 50) {
       variations.push({
-
         difference,
-
         avant,
-
         apres,
-
-        date:
-        mesures[i].date,
-
-
-        heure:
-        mesures[i].heure || ""
-
+        date: mesures[index].date,
+        heure: mesures[index].heure || "",
       });
-
-
     }
-
-
   }
 
-
-
-
-  if(variations.length===0){
-
-
+  if (variations.length === 0) {
     return {
-
-      nombre:0,
-
-      message:
-      "Aucune variation importante détectée."
-
+      nombre: 0,
+      message: "Aucune variation importante détectée.",
     };
-
-
   }
 
-
-
-
-
-  const plusGrande =
-    variations.sort(
-      (a,b)=>
-      Math.abs(b.difference)
-      -
-      Math.abs(a.difference)
-    )[0];
-
-
-
-
-
-  let message="";
-
-
-
-  if(plusGrande.difference > 0){
-
-
-    message =
-    `Diabia détecte une montée importante de +${plusGrande.difference} mg/dL le ${plusGrande.date} à ${plusGrande.heure}. Passage de ${plusGrande.avant} à ${plusGrande.apres} mg/dL.`;
-
-
-
-  } else {
-
-
-
-    message =
-    `Diabia détecte une baisse importante de ${plusGrande.difference} mg/dL le ${plusGrande.date} à ${plusGrande.heure}. Passage de ${plusGrande.avant} à ${plusGrande.apres} mg/dL.`;
-
-  }
-
-
-
-
+  const plusGrande = variations.reduce((actuelle, variation) =>
+    Math.abs(variation.difference) > Math.abs(actuelle.difference) ? variation : actuelle
+  );
+  const message = plusGrande.difference > 0
+    ? `Diabia détecte une montée importante de +${plusGrande.difference} mg/dL le ${plusGrande.date} à ${plusGrande.heure}. Passage de ${plusGrande.avant} à ${plusGrande.apres} mg/dL.`
+    : `Diabia détecte une baisse importante de ${plusGrande.difference} mg/dL le ${plusGrande.date} à ${plusGrande.heure}. Passage de ${plusGrande.avant} à ${plusGrande.apres} mg/dL.`;
 
   return {
-
-    nombre:variations.length,
-
+    nombre: variations.length,
     variations,
-
-    message
-
+    message,
   };
-
-
 }

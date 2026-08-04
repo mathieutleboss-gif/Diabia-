@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Line,
@@ -12,10 +13,36 @@ import {
   YAxis,
 } from "recharts";
 import type { Mesure } from "../../../lib/analyses/types";
+import { trierMesuresChronologiquement } from "../../../lib/dates";
 
 type GlucoseChartProps = { mesures: Mesure[] };
 
 type TooltipValue = number | string | ReadonlyArray<number | string> | undefined;
+type ChartPoint = Mesure & { index: number; glycemie: number; libelle: string };
+
+const MAX_POINTS_AFFICHES = 600;
+
+function reduirePourGraphique(donnees: ChartPoint[]): ChartPoint[] {
+  if (donnees.length <= MAX_POINTS_AFFICHES) return donnees;
+
+  const resultat = [donnees[0]];
+  const interieur = donnees.slice(1, -1);
+  const tailleSegment = Math.ceil(interieur.length / ((MAX_POINTS_AFFICHES - 2) / 2));
+
+  for (let debut = 0; debut < interieur.length; debut += tailleSegment) {
+    const segment = interieur.slice(debut, debut + tailleSegment);
+    const minimum = segment.reduce((a, b) => a.glycemie <= b.glycemie ? a : b);
+    const maximum = segment.reduce((a, b) => a.glycemie >= b.glycemie ? a : b);
+    if (minimum.index === maximum.index) {
+      resultat.push(minimum);
+    } else {
+      resultat.push(...(minimum.index < maximum.index ? [minimum, maximum] : [maximum, minimum]));
+    }
+  }
+
+  resultat.push(donnees[donnees.length - 1]);
+  return resultat;
+}
 
 function ChartTooltip({
   active,
@@ -37,21 +64,35 @@ function ChartTooltip({
 }
 
 export default function GlucoseChart({ mesures }: GlucoseChartProps) {
-  const donnees = mesures
-    .map((mesure, index) => ({
-      ...mesure,
-      index,
-      glycemie: Number(mesure.glycemie),
-      libelle: mesure.heure || mesure.date || `#${index + 1}`,
-    }))
-    .filter((mesure) => Number.isFinite(mesure.glycemie));
+  const donneesCompletes = useMemo(
+    () => trierMesuresChronologiquement(mesures)
+      .map((mesure, index) => ({
+        ...mesure,
+        index,
+        glycemie: Number(mesure.glycemie),
+        libelle: mesure.heure || mesure.date || `#${index + 1}`,
+      }))
+      .filter((mesure): mesure is ChartPoint => Number.isFinite(mesure.glycemie)),
+    [mesures]
+  );
+  const donnees = useMemo(() => reduirePourGraphique(donneesCompletes), [donneesCompletes]);
+  const statistiquesAccessibles = donneesCompletes.reduce(
+    (resume, mesure) => ({
+      minimum: Math.min(resume.minimum, mesure.glycemie),
+      maximum: Math.max(resume.maximum, mesure.glycemie),
+    }),
+    { minimum: Number.POSITIVE_INFINITY, maximum: Number.NEGATIVE_INFINITY }
+  );
+  const resumeAccessible = donneesCompletes.length
+    ? `${donneesCompletes.length} mesures. Minimum ${statistiquesAccessibles.minimum} mg/dL, maximum ${statistiquesAccessibles.maximum} mg/dL, dernière valeur ${donneesCompletes[donneesCompletes.length - 1].glycemie} mg/dL.`
+    : "Aucune mesure glycémique disponible.";
 
   return (
-    <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_55px_-34px_rgba(15,23,42,0.4)] backdrop-blur-xl sm:p-7">
+    <section aria-labelledby="titre-courbe" aria-describedby="resume-courbe" className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_55px_-34px_rgba(15,23,42,0.4)] backdrop-blur-xl sm:p-7">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Évolution</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Courbe glycémique</h2>
+          <h2 id="titre-courbe" className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Courbe glycémique</h2>
           <p className="mt-1 text-sm text-slate-500">Zone cible visualisée entre 70 et 180 mg/dL.</p>
         </div>
         <div className="flex gap-3 text-xs font-medium text-slate-500">
@@ -59,9 +100,10 @@ export default function GlucoseChart({ mesures }: GlucoseChartProps) {
           <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-emerald-400" />Cible</span>
         </div>
       </div>
+      <p id="resume-courbe" className="sr-only">{resumeAccessible}</p>
 
       {donnees.length ? (
-        <div className="mt-7 h-[320px] w-full sm:h-[380px]">
+        <div aria-hidden="true" className="mt-7 h-[320px] w-full sm:h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={donnees} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 6" vertical={false} />

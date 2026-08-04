@@ -2,6 +2,14 @@
 
 import { useState, useSyncExternalStore } from "react";
 import type { ProfilDiabia } from "../../lib/analyses/types";
+import {
+  exporterDonneesLocales,
+  lireValeurLocale,
+  sauvegarderLocal,
+  supprimerDonneesLocales,
+} from "../../lib/storage";
+import { STORAGE_KEYS } from "../../lib/storageKeys";
+import { normaliserProfil } from "../../lib/validation";
 import { FormField, GlassPanel, PageHero, PageShell, fieldClassName, primaryButtonClassName } from "../components/PageShell";
 
 const EMPTY_PROFILE = "{}";
@@ -12,7 +20,7 @@ function subscribeToProfile(callback: () => void) {
 }
 
 function readProfile() {
-  return localStorage.getItem("profil") || EMPTY_PROFILE;
+  return lireValeurLocale(STORAGE_KEYS.profil, EMPTY_PROFILE);
 }
 
 function readServerProfile() {
@@ -21,8 +29,7 @@ function readServerProfile() {
 
 function parseProfile(snapshot: string): ProfilDiabia {
   try {
-    const value = JSON.parse(snapshot);
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    return normaliserProfil(JSON.parse(snapshot));
   } catch {
     return {};
   }
@@ -30,10 +37,17 @@ function parseProfile(snapshot: string): ProfilDiabia {
 
 function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
   const [profil, setProfil] = useState<ProfilDiabia>(initialProfile);
+  const [erreur, setErreur] = useState("");
+  const [succes, setSucces] = useState("");
 
   function sauvegarder() {
-    localStorage.setItem("profil", JSON.stringify(profil));
-    alert("Profil enregistré !");
+    if (!sauvegarderLocal(STORAGE_KEYS.profil, profil)) {
+      setErreur("Le profil n’a pas pu être enregistré dans ce navigateur.");
+      setSucces("");
+      return;
+    }
+    setErreur("");
+    setSucces("Profil enregistré dans ce navigateur.");
   }
 
   return (
@@ -85,6 +99,59 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
       >
         Enregistrer
       </button>
+      {erreur && <p role="alert" className="text-sm font-medium text-red-700">{erreur}</p>}
+      {succes && <p role="status" className="text-sm font-medium text-emerald-700">{succes}</p>}
+    </GlassPanel>
+  );
+}
+
+function DataControls() {
+  const [erreur, setErreur] = useState("");
+
+  function exporter() {
+    const donnees = exporterDonneesLocales();
+    const blob = new Blob([JSON.stringify(donnees, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = `diabia-export-${new Date().toISOString().slice(0, 10)}.json`;
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function supprimer() {
+    const confirmation = window.confirm(
+      "Supprimer définitivement les mesures, le journal et le profil stockés dans ce navigateur ?"
+    );
+    if (!confirmation) return;
+
+    if (!supprimerDonneesLocales()) {
+      setErreur("Les données n’ont pas pu être supprimées de ce navigateur.");
+      return;
+    }
+
+    window.location.reload();
+  }
+
+  return (
+    <GlassPanel className="mt-5">
+      <h2 className="text-xl font-semibold text-slate-950">Gestion des données</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        Télécharge une copie locale ou efface définitivement les informations enregistrées par Diabia dans ce navigateur.
+      </p>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <button type="button" onClick={exporter} className={primaryButtonClassName}>
+          Exporter mes données
+        </button>
+        <button
+          type="button"
+          onClick={supprimer}
+          className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-6 py-3.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+        >
+          Supprimer mes données
+        </button>
+      </div>
+      {erreur && <p role="alert" className="mt-4 text-sm font-medium text-red-700">{erreur}</p>}
     </GlassPanel>
   );
 }
@@ -100,6 +167,7 @@ export default function Profile() {
     <PageShell width="max-w-4xl">
       <PageHero eyebrow="Personnalisation" title="Mon profil" description="Ces informations permettent à Diabia de contextualiser ses explications sans quitter ton navigateur." />
       <ProfileForm key={snapshot} initialProfile={parseProfile(snapshot)} />
+      <DataControls />
     </PageShell>
   );
 }

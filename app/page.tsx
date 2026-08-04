@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ROUTES } from "../lib/routes";
 
 const features = [
   ["◎", "Analyse claire", "Temps dans la cible, variations, tendances et score synthétique."],
@@ -17,8 +18,8 @@ export default function Home() {
             <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.06em] text-slate-950 sm:text-7xl">Comprendre sa glycémie devient plus clair.</h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">Diabia transforme tes mesures en tendances lisibles, observations prudentes et repères utiles au quotidien.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/dashboard" className="rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-700">Ouvrir mon Dashboard</Link>
-              <Link href="/import" className="rounded-2xl border border-white/80 bg-white/80 px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5">Importer mes données</Link>
+              <Link href={ROUTES.dashboard} className="rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-700">Ouvrir mon Dashboard</Link>
+              <Link href={ROUTES.import} className="rounded-2xl border border-white/80 bg-white/80 px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5">Importer mes données</Link>
             </div>
           </div>
           <div className="relative rounded-[2.5rem] bg-slate-950 p-6 text-white shadow-[0_40px_100px_-40px_rgba(15,23,42,0.8)] sm:p-8">
