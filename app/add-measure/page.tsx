@@ -72,7 +72,7 @@ export default function AddMeasure() {
       <GlassPanel className="grid gap-8 lg:grid-cols-[1fr_0.7fr]">
         <form className="space-y-5" onSubmit={enregistrer}>
           <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-            <FormField label="Glycémie" hint={`saisie en ${unite}`}>
+            <FormField label="Glycémie" hint={`obligatoire · saisie en ${unite}`}>
               <input type="text" inputMode="decimal" className={fieldClassName} value={glycemie} onChange={(e) => setGlycemie(e.target.value)} placeholder={exemplePourUnite(unite)} autoComplete="off" />
             </FormField>
             <FormField label="Unité">
@@ -84,14 +84,14 @@ export default function AddMeasure() {
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Date">
+            <FormField label="Date" hint="obligatoire">
               <input type="date" required className={fieldClassName} value={date} onChange={(event) => setDate(event.target.value)} />
             </FormField>
-            <FormField label="Heure">
+            <FormField label="Heure" hint="obligatoire">
               <input type="time" required className={fieldClassName} value={heure} onChange={(event) => setHeure(event.target.value)} />
             </FormField>
           </div>
-          <FormField label="Insuline rapide" hint="unités">
+          <FormField label="Insuline rapide" hint="facultatif · unités">
             <input type="number" min="0" step="any" inputMode="decimal" className={fieldClassName} value={insuline} onChange={(e) => setInsuline(e.target.value)} placeholder="4" />
           </FormField>
           <FormField label="Note" hint="facultatif">

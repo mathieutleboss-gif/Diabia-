@@ -69,6 +69,12 @@ export default function ImportPage() {
     <PageShell width="max-w-5xl">
       <PageHero eyebrow="Données" title="Importer un fichier CSV" description="Prévisualise et contrôle tes mesures avant de remplacer les données actuelles." />
       <GlassPanel>
+        <div className="mb-6 rounded-3xl bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+          <p className="font-semibold text-slate-900">Format attendu</p>
+          <p className="mt-1">Les colonnes glycémie (ou glucose) et date sont obligatoires. L’heure, l’insuline et la note sont facultatives. Les dates peuvent utiliser le format JJ/MM/AAAA ou AAAA-MM-JJ.</p>
+          <pre className="mt-3 overflow-x-auto rounded-2xl bg-white p-3 text-xs text-slate-600">glycémie,date,heure,insuline,note{"\n"}120,05/08/2026,08:30,4,Petit-déjeuner</pre>
+          <p className="mt-3 font-medium text-amber-800">L’import ne fusionne pas les données : après prévisualisation et confirmation, il remplace les mesures enregistrées. Tant que tu ne confirmes pas, tes données actuelles sont conservées.</p>
+        </div>
         <div className="mb-5 max-w-xs">
           <FormField label="Unité du fichier">
             <select className={fieldClassName} value={unite} onChange={(event) => { setUnite(event.target.value as GlucoseUnit); setApercu(null); }}>

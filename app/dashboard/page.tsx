@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { analyserGlycemie } from "../../lib/analyse";
 import type {
@@ -17,6 +18,7 @@ import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { normaliserJournal, normaliserMesures, normaliserProfil } from "../../lib/validation";
 import { lireValeurLocale } from "../../lib/storage";
 import { obtenirTimestamp } from "../../lib/dates";
+import { ROUTES } from "../../lib/routes";
 
 const SERVER_SNAPSHOT = JSON.stringify({
   mesures: "[]",
@@ -108,31 +110,33 @@ export default function Dashboard() {
           nombreMesures={mesuresAnalysees.length}
         />
 
-        <div className="flex flex-col gap-3 rounded-3xl border border-white/80 bg-white/80 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="text-sm font-semibold text-slate-900">Période analysée</p><p className="text-xs text-slate-500">Les mesures sans date sont incluses uniquement dans « Tout l’historique ».</p></div>
-          <select aria-label="Période analysée" value={periode} onChange={(event) => setPeriode(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100"><option value="7">7 derniers jours</option><option value="14">14 derniers jours</option><option value="30">30 derniers jours</option><option value="all">Tout l’historique</option></select>
-        </div>
+        {!hasData ? (
+          <section className="rounded-[2rem] border border-white/80 bg-white/90 p-7 shadow-[0_20px_55px_-34px_rgba(15,23,42,0.4)] sm:p-9">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Premiers pas</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ajoute tes premières mesures</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Saisis une mesure manuellement ou importe un fichier CSV. Le score, la courbe et les analyses apparaîtront dès qu’une mesure valide sera disponible.</p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link href={ROUTES.ajoutMesure} className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Ajouter une mesure</Link>
+              <Link href={ROUTES.import} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700">Importer un CSV</Link>
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3 rounded-3xl border border-white/80 bg-white/80 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-sm font-semibold text-slate-900">Période analysée</p><p className="text-xs text-slate-500">Les mesures sans date sont incluses uniquement dans « Tout l’historique ».</p></div>
+              <select aria-label="Période analysée" value={periode} onChange={(event) => setPeriode(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100"><option value="7">7 derniers jours</option><option value="14">14 derniers jours</option><option value="30">30 derniers jours</option><option value="all">Tout l’historique</option></select>
+            </div>
 
-        <section className="grid gap-5 xl:grid-cols-[0.95fr_1.25fr]">
-          <ScoreCard
-            score={analyse.score}
-            moyenne={analyse.moyenne}
-            minimum={analyse.minimum}
-            maximum={analyse.maximum}
-            hasData={hasData}
-          />
-          <GlucoseChart mesures={mesuresAnalysees} />
-        </section>
+            <section className="grid gap-5 xl:grid-cols-[0.95fr_1.25fr]">
+              <ScoreCard score={analyse.score} moyenne={analyse.moyenne} minimum={analyse.minimum} maximum={analyse.maximum} hasData={hasData} />
+              <GlucoseChart mesures={mesuresAnalysees} />
+            </section>
 
-        <MetricCards
-          cible={analyse.cible}
-          hyper={analyse.hyper}
-          hypo={analyse.hypo}
-          variations={analyse.variations.nombre}
-          hasData={hasData}
-        />
+            <MetricCards cible={analyse.cible} hyper={analyse.hyper} hypo={analyse.hypo} variations={analyse.variations.nombre} hasData={hasData} />
 
-        <InsightsPanel analyse={analyse} hasData={hasData} />
+            <InsightsPanel analyse={analyse} hasData={hasData} />
+          </>
+        )}
 
         <JournalProfile journal={journal} profil={profil} />
 

@@ -60,7 +60,7 @@ export default function DashboardHeader({
             className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/15 sm:px-4"
           >
             <ActionIcon>＋</ActionIcon>
-            Mesure
+            Ajouter
           </Link>
           <Link
             href={ROUTES.journal}
