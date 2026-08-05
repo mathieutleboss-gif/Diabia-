@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import type { Mesure } from "../../../lib/analyses/types";
 import { trierMesuresChronologiquement } from "../../../lib/dates";
+import Link from "next/link";
+import { ROUTES } from "../../../lib/routes";
 
 type GlucoseChartProps = { mesures: Mesure[] };
 
@@ -50,7 +52,7 @@ function ChartTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ value?: TooltipValue }>;
+  payload?: Array<{ value?: TooltipValue; payload?: ChartPoint }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
@@ -59,6 +61,8 @@ function ChartTooltip({
     <div className="rounded-2xl border border-white/80 bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
       <p className="text-xs text-slate-300">{label || "Mesure"}</p>
       <p className="mt-1 text-lg font-semibold">{String(payload[0]?.value ?? "—")} mg/dL</p>
+      {payload[0]?.payload?.insuline !== undefined && Number(payload[0].payload.insuline) > 0 && <p className="mt-1 text-xs text-slate-300">Insuline : {payload[0].payload.insuline} unité(s)</p>}
+      {payload[0]?.payload?.note && <p className="mt-1 max-w-56 text-xs text-slate-300">{payload[0].payload.note}</p>}
     </div>
   );
 }
@@ -94,6 +98,7 @@ export default function GlucoseChart({ mesures }: GlucoseChartProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Évolution</p>
           <h2 id="titre-courbe" className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Courbe glycémique</h2>
           <p className="mt-1 text-sm text-slate-500">Zone cible visualisée entre 70 et 180 mg/dL.</p>
+          <Link href={ROUTES.mesures} className="mt-2 inline-flex text-xs font-semibold text-blue-700">Voir toutes les mesures →</Link>
         </div>
         <div className="flex gap-3 text-xs font-medium text-slate-500">
           <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-blue-600" />Glycémie</span>
@@ -114,7 +119,7 @@ export default function GlucoseChart({ mesures }: GlucoseChartProps) {
               <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} domain={["dataMin - 20", "dataMax + 20"]} />
               <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }} />
               <Line
-                type="monotone"
+                type="linear"
                 dataKey="glycemie"
                 stroke="#2563eb"
                 strokeWidth={3}

@@ -5,4 +5,4 @@ export const STORAGE_KEYS = {
   version: "diabia_storage_version",
 } as const;
 
-export const STORAGE_VERSION = 1;
+export const STORAGE_VERSION = 2;

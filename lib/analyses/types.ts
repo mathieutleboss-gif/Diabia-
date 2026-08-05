@@ -1,4 +1,5 @@
 export type Mesure = {
+  id?: string;
   glycemie: number | string;
   insuline?: number | string;
   date?: string;
@@ -8,6 +9,7 @@ export type Mesure = {
 };
 
 export type JournalEntry = {
+  id?: string;
   type?: string;
   description?: string;
   heure?: string;
@@ -20,6 +22,7 @@ export type ProfilDiabia = {
   diabete?: string;
   appareil?: string;
   objectif?: string;
+  uniteGlycemie?: "mg/dL" | "g/L" | "mmol/L";
 };
 
 export type AnalyseBase = {

@@ -47,7 +47,7 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        <nav className="grid grid-cols-3 gap-2 sm:flex" aria-label="Actions du tableau de bord">
+        <nav className="grid grid-cols-1 gap-2 min-[440px]:grid-cols-3 sm:flex" aria-label="Actions du tableau de bord">
           <Link
             href={ROUTES.import}
             className="flex items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-blue-50 sm:px-4"

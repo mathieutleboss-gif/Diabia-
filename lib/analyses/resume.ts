@@ -8,7 +8,7 @@ export function creerResume(analyse: AnalyseBase) {
   if (analyse.cible >= 70) {
     positif.push("La majorité des glycémies sont dans la cible.");
   } else {
-    attention.push("Le temps dans la cible pourrait être amélioré.");
+    attention.push("La proportion de mesures dans la cible pourrait être améliorée.");
   }
 
   if (analyse.hyper <= 20) {

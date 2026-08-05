@@ -52,7 +52,7 @@ export function analyserGlycemie(
     insights,
     resume,
     message: `Moyenne : ${stats.moyenne} mg/dL.
-${stats.cible}% dans la cible.
+${stats.cible}% des mesures dans la cible.
 
 ${variations.message}
 

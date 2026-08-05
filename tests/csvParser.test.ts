@@ -19,3 +19,18 @@ test("le parseur conserve uniquement les lignes glycémiques valides", () => {
     [2026, 8, 4]
   );
 });
+
+test("le parseur reconnaît les accents, l’heure et convertit les mmol/L", () => {
+  const mesures = analyserCSV([
+    { "Glycémie": "6,7", Date: "04/08/2026", Heure: "14:35", Insuline: "3" },
+  ], "mmol/L");
+
+  assert.equal(mesures.length, 1);
+  assert.equal(mesures[0].glycemie, 120.7);
+  assert.equal(mesures[0].heure, "14:35");
+  assert.equal(mesures[0].insuline, 3);
+});
+
+test("le parseur rejette une ligne sans date au lieu d’inventer la date du jour", () => {
+  assert.equal(analyserCSV([{ glucose: "120" }]).length, 0);
+});

@@ -16,6 +16,19 @@ type AssistantRequest = {
   rapport?: unknown;
 };
 
+export async function GET() {
+  try {
+    const tagsUrl = new URL("/api/tags", OLLAMA_URL);
+    const response = await fetch(tagsUrl, { signal: AbortSignal.timeout(3_000), cache: "no-store" });
+    if (!response.ok) throw new Error("Ollama indisponible");
+    const data = (await response.json()) as { models?: Array<{ name?: string }> };
+    const modelDisponible = data.models?.some(({ name }) => name === OLLAMA_MODEL || name?.startsWith(`${OLLAMA_MODEL}:`)) ?? false;
+    return NextResponse.json({ disponible: true, modele: OLLAMA_MODEL, modelDisponible });
+  } catch {
+    return NextResponse.json({ disponible: false, modele: OLLAMA_MODEL, modelDisponible: false });
+  }
+}
+
 function obtenirAdresseClient(request: Request): string {
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
 }
@@ -106,7 +119,7 @@ export async function POST(request: Request) {
       const details = await ollamaResponse.text();
       console.error("Erreur Ollama :", details);
       return NextResponse.json(
-        { error: "Ollama n’a pas réussi à répondre. Vérifie qu’Ollama est ouvert et que llama3.2:3b est installé." },
+        { error: `Ollama n’a pas réussi à répondre. Vérifie qu’Ollama est ouvert et que ${OLLAMA_MODEL} est installé.` },
         { status: 502 }
       );
     }
@@ -122,7 +135,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Erreur assistant Diabia :", error);
     return NextResponse.json(
-      { error: "Impossible de contacter l’IA locale. Vérifie qu’Ollama fonctionne sur ton Mac." },
+      { error: "Impossible de contacter l’IA. Vérifie qu’Ollama fonctionne sur la machine qui exécute Diabia." },
       { status: 500 }
     );
   }
