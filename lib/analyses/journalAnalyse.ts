@@ -1,4 +1,4 @@
-import { sontDuMemeJour } from "../dates";
+import { obtenirTimestamp } from "../dates";
 import type { JournalEntry, Mesure } from "./types";
 
 export function analyserJournal(mesures: Mesure[], journal: JournalEntry[]) {
@@ -10,14 +10,13 @@ export function analyserJournal(mesures: Mesure[], journal: JournalEntry[]) {
   const repas = journal.filter((item) => item.type === "Repas");
 
   repas.forEach((repas) => {
-    if (!repas.heure) return;
-    const heureRepas = Number(repas.heure.split(":")[0]);
+    const timestampRepas = obtenirTimestamp(repas);
+    if (timestampRepas === null) return;
     const apresRepas = mesures.filter((mesure) => {
-      if (!mesure.heure) return false;
-      const heure = Number(mesure.heure.split(":")[0]);
-      const memeJour = sontDuMemeJour(repas, mesure);
-      if (memeJour === false) return false;
-      return heure >= heureRepas && heure <= heureRepas + 3;
+      const timestampMesure = obtenirTimestamp(mesure);
+      if (timestampMesure === null) return false;
+      const delai = timestampMesure - timestampRepas;
+      return delai >= 0 && delai <= 3 * 60 * 60 * 1000;
     });
     const hyper = apresRepas.filter((mesure) => Number(mesure.glycemie) > 180);
 

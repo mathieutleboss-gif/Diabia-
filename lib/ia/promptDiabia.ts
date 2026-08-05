@@ -1,13 +1,14 @@
 type RapportDiabia = {
   profil?: { diabete?: string; appareil?: string; objectif?: string };
   glycemie?: {
-    tempsDansCible?: number | string;
+    pourcentageMesuresDansCible?: number | string;
     hyperglycemies?: number | string;
     hypoglycemies?: number | string;
     score?: number | string;
   };
   stabilite?: { variations?: number | string; tendance?: unknown };
   habitudes?: { journalTotal?: number; dernierEvenements?: unknown[] };
+  contexteMesures?: unknown[];
   resume?: string;
 };
 
@@ -39,9 +40,9 @@ PROFIL
 - Objectif : ${rapport.profil?.objectif ?? "Non renseigné"}
 
 RÉSULTATS
-- Temps dans la cible : ${rapport.glycemie?.tempsDansCible ?? "Non disponible"} %
-- Hyperglycémies : ${rapport.glycemie?.hyperglycemies ?? "Non disponible"} %
-- Hypoglycémies : ${rapport.glycemie?.hypoglycemies ?? "Non disponible"} %
+- Mesures dans la cible : ${rapport.glycemie?.pourcentageMesuresDansCible ?? "Non disponible"} %
+- Mesures supérieures à 180 mg/dL : ${rapport.glycemie?.hyperglycemies ?? "Non disponible"} %
+- Mesures inférieures à 70 mg/dL : ${rapport.glycemie?.hypoglycemies ?? "Non disponible"} %
 - Score Diabia : ${rapport.glycemie?.score ?? "Non disponible"} / 100
 - Variations importantes : ${rapport.stabilite?.variations ?? "Non disponible"}
 - Tendance : ${JSON.stringify(rapport.stabilite?.tendance ?? "Non disponible")}
@@ -50,6 +51,9 @@ JOURNAL
 - Nombre d'événements : ${rapport.habitudes?.journalTotal ?? 0}
 - Événements récents :
 ${JSON.stringify(rapport.habitudes?.dernierEvenements ?? [], null, 2)}
+
+MESURES RÉCENTES ET CONTEXTE SAISI
+${JSON.stringify(rapport.contexteMesures ?? [], null, 2)}
 
 RÉSUMÉ EXISTANT
 ${rapport.resume ?? "Aucun résumé disponible"}

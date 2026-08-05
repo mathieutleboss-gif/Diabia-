@@ -2,9 +2,9 @@ import Link from "next/link";
 import { ROUTES } from "../lib/routes";
 
 const features = [
-  ["◎", "Analyse claire", "Temps dans la cible, variations, tendances et score synthétique."],
+  ["◎", "Analyse claire", "Mesures dans la cible, variations, tendances et score synthétique."],
   ["⌁", "Contexte utile", "Journalise repas, activité et insuline pour enrichir la lecture."],
-  ["✦", "IA locale", "Interroge Ollama sur tes résultats sans envoyer tes données dans le cloud."],
+  ["✦", "IA maîtrisée", "Interroge l’instance Ollama que tu as configurée pour Diabia."],
 ];
 
 export default function Home() {
@@ -18,13 +18,13 @@ export default function Home() {
             <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.06em] text-slate-950 sm:text-7xl">Comprendre sa glycémie devient plus clair.</h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">Diabia transforme tes mesures en tendances lisibles, observations prudentes et repères utiles au quotidien.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={ROUTES.dashboard} className="rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-700">Ouvrir mon Dashboard</Link>
+              <Link href={ROUTES.dashboard} className="rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-700">Ouvrir mon tableau de bord</Link>
               <Link href={ROUTES.import} className="rounded-2xl border border-white/80 bg-white/80 px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5">Importer mes données</Link>
             </div>
           </div>
           <div className="relative rounded-[2.5rem] bg-slate-950 p-6 text-white shadow-[0_40px_100px_-40px_rgba(15,23,42,0.8)] sm:p-8">
             <div className="absolute -right-12 -top-12 size-40 rounded-full bg-blue-500/30 blur-3xl" />
-            <p className="text-sm text-slate-400">Aperçu Diabia</p>
+            <p className="text-sm text-slate-400">Exemple d’aperçu Diabia</p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <div className="rounded-3xl bg-white/10 p-5"><p className="text-sm text-slate-400">Score Diabia</p><p className="mt-2 text-5xl font-semibold">84</p></div>
               <div className="rounded-3xl bg-emerald-400 p-5 text-slate-950"><p className="text-sm font-medium opacity-70">Dans la cible</p><p className="mt-2 text-5xl font-semibold">78%</p></div>
@@ -33,6 +33,7 @@ export default function Home() {
           </div>
         </section>
         <section className="mt-20 grid gap-4 md:grid-cols-3">{features.map(([icon, title, text]) => <article key={title} className="rounded-[2rem] border border-white/80 bg-white/85 p-6 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.4)] backdrop-blur-xl"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-xl text-blue-700">{icon}</span><h2 className="mt-5 text-xl font-semibold text-slate-900">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></article>)}</section>
+        <p className="mt-10 text-center"><Link href={ROUTES.presentation} className="text-sm font-semibold text-blue-700">Découvrir le fonctionnement de Diabia →</Link></p>
       </div>
     </main>
   );

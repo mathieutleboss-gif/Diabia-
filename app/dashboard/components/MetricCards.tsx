@@ -55,7 +55,7 @@ export default function MetricCards({
 }: MetricCardsProps) {
   const metrics: Metric[] = [
     {
-      label: "Dans la cible",
+      label: "Mesures dans la cible",
       value: cible,
       description: "Mesures comprises entre 70 et 180 mg/dL.",
       color: "text-emerald-600",
@@ -64,7 +64,7 @@ export default function MetricCards({
       icon: "◎",
     },
     {
-      label: "Hyperglycémies",
+      label: "Mesures au-dessus",
       value: hyper,
       description: "Mesures supérieures à 180 mg/dL.",
       color: "text-amber-600",
@@ -73,7 +73,7 @@ export default function MetricCards({
       icon: "↗",
     },
     {
-      label: "Hypoglycémies",
+      label: "Mesures en dessous",
       value: hypo,
       description: "Mesures inférieures à 70 mg/dL.",
       color: "text-rose-600",

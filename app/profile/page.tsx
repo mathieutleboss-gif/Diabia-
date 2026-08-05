@@ -16,7 +16,11 @@ const EMPTY_PROFILE = "{}";
 
 function subscribeToProfile(callback: () => void) {
   window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
+  window.addEventListener("diabia:storage", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("diabia:storage", callback);
+  };
 }
 
 function readProfile() {
@@ -40,7 +44,8 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
   const [erreur, setErreur] = useState("");
   const [succes, setSucces] = useState("");
 
-  function sauvegarder() {
+  function sauvegarder(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!sauvegarderLocal(STORAGE_KEYS.profil, profil)) {
       setErreur("Le profil n’a pas pu être enregistré dans ce navigateur.");
       setSucces("");
@@ -51,7 +56,10 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
   }
 
   return (
-    <GlassPanel className="space-y-5">
+    <GlassPanel><form onSubmit={sauvegarder} className="space-y-5">
+      <FormField label="Prénom" hint="facultatif">
+        <input className={fieldClassName} value={profil.prenom || ""} onChange={(event) => setProfil({ ...profil, prenom: event.target.value })} autoComplete="given-name" />
+      </FormField>
       <FormField label="Type de diabète">
       <select
         id="diabete"
@@ -92,21 +100,25 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfilDiabia }) {
         <option>Mieux comprendre mes variations</option>
       </select>
       </FormField>
+      <FormField label="Unité de saisie préférée">
+        <select className={fieldClassName} value={profil.uniteGlycemie || "mg/dL"} onChange={(event) => setProfil({ ...profil, uniteGlycemie: event.target.value as ProfilDiabia["uniteGlycemie"] })}><option>mg/dL</option><option>g/L</option><option>mmol/L</option></select>
+      </FormField>
       <button
-        type="button"
-        onClick={sauvegarder}
+        type="submit"
         className={primaryButtonClassName}
       >
         Enregistrer
       </button>
       {erreur && <p role="alert" className="text-sm font-medium text-red-700">{erreur}</p>}
       {succes && <p role="status" className="text-sm font-medium text-emerald-700">{succes}</p>}
-    </GlassPanel>
+    </form></GlassPanel>
   );
 }
 
 function DataControls() {
   const [erreur, setErreur] = useState("");
+  const [succes, setSucces] = useState("");
+  const [confirmation, setConfirmation] = useState(false);
 
   function exporter() {
     const donnees = exporterDonneesLocales();
@@ -117,19 +129,15 @@ function DataControls() {
     lien.download = `diabia-export-${new Date().toISOString().slice(0, 10)}.json`;
     lien.click();
     URL.revokeObjectURL(url);
+    setSucces("Export téléchargé.");
   }
 
   function supprimer() {
-    const confirmation = window.confirm(
-      "Supprimer définitivement les mesures, le journal et le profil stockés dans ce navigateur ?"
-    );
-    if (!confirmation) return;
-
     if (!supprimerDonneesLocales()) {
       setErreur("Les données n’ont pas pu être supprimées de ce navigateur.");
       return;
     }
-
+    setConfirmation(false);
     window.location.reload();
   }
 
@@ -145,13 +153,15 @@ function DataControls() {
         </button>
         <button
           type="button"
-          onClick={supprimer}
+          onClick={() => setConfirmation(true)}
           className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-6 py-3.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
         >
           Supprimer mes données
         </button>
       </div>
+      {confirmation && <div role="alertdialog" aria-modal="true" className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4"><p className="font-semibold text-red-900">Supprimer définitivement les mesures, le journal et le profil de ce navigateur ?</p><div className="mt-4 flex gap-3"><button type="button" onClick={supprimer} className="rounded-2xl bg-red-700 px-5 py-3 text-sm font-semibold text-white">Confirmer la suppression</button><button type="button" onClick={() => setConfirmation(false)} className="rounded-2xl px-5 py-3 text-sm font-semibold text-slate-600">Annuler</button></div></div>}
       {erreur && <p role="alert" className="mt-4 text-sm font-medium text-red-700">{erreur}</p>}
+      {succes && <p role="status" className="mt-4 text-sm font-medium text-emerald-700">{succes}</p>}
     </GlassPanel>
   );
 }

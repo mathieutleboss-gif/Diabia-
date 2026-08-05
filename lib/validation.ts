@@ -1,4 +1,5 @@
 import type { JournalEntry, Mesure, ProfilDiabia } from "./analyses/types";
+import { estUniteGlycemie } from "./glucoseUnits";
 
 function estObjet(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -17,6 +18,7 @@ export function normaliserMesures(value: unknown): Mesure[] {
     if (typeof item.glycemie === "string" && !item.glycemie.trim()) return [];
 
     return [{
+      id: chaineOptionnelle(item.id),
       glycemie: item.glycemie,
       insuline:
         typeof item.insuline === "string" || typeof item.insuline === "number"
@@ -36,6 +38,7 @@ export function normaliserJournal(value: unknown): JournalEntry[] {
   return value.flatMap((item) => {
     if (!estObjet(item)) return [];
     return [{
+      id: chaineOptionnelle(item.id),
       type: chaineOptionnelle(item.type),
       description: chaineOptionnelle(item.description),
       heure: chaineOptionnelle(item.heure),
@@ -52,5 +55,6 @@ export function normaliserProfil(value: unknown): ProfilDiabia {
     diabete: chaineOptionnelle(value.diabete),
     appareil: chaineOptionnelle(value.appareil),
     objectif: chaineOptionnelle(value.objectif),
+    uniteGlycemie: estUniteGlycemie(value.uniteGlycemie) ? value.uniteGlycemie : undefined,
   };
 }

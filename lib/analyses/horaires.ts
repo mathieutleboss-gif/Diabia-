@@ -28,7 +28,7 @@ export function analyserHoraires(mesures: Mesure[]) {
   ].sort((a, b) => b.valeur - a.valeur);
   const principale = periodes[0];
   const message = principale.valeur > 0
-    ? `Les hyperglycémies apparaissent principalement le ${principale.nom} (${principale.valeur} épisode(s) détecté(s)).`
+    ? `Les mesures supérieures à 180 mg/dL apparaissent principalement le ${principale.nom} (${principale.valeur} mesure(s)).`
     : "Aucune période problématique détectée.";
 
   return { matin, midi, soir, nuit, message };

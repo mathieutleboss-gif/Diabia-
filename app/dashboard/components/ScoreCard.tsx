@@ -67,7 +67,7 @@ export default function ScoreCard({
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               {hasData
-                ? "Ce score combine le temps dans la cible, les épisodes hors cible et les variations importantes."
+                ? "Ce score combine la proportion de mesures dans la cible, les mesures hors cible et les écarts consécutifs importants."
                 : "Le score ne sera affiché qu’après l’enregistrement d’au moins une mesure."}
             </p>
 

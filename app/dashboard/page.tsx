@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { analyserGlycemie } from "../../lib/analyse";
 import type {
   JournalEntry,
@@ -16,6 +16,7 @@ import ScoreCard from "./components/ScoreCard";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { normaliserJournal, normaliserMesures, normaliserProfil } from "../../lib/validation";
 import { lireValeurLocale } from "../../lib/storage";
+import { obtenirTimestamp } from "../../lib/dates";
 
 const SERVER_SNAPSHOT = JSON.stringify({
   mesures: "[]",
@@ -25,7 +26,11 @@ const SERVER_SNAPSHOT = JSON.stringify({
 
 function subscribeToStorage(callback: () => void) {
   window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
+  window.addEventListener("diabia:storage", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("diabia:storage", callback);
+  };
 }
 
 function readStorageSnapshot() {
@@ -68,6 +73,8 @@ function parseDashboardData(snapshot: string): {
 }
 
 export default function Dashboard() {
+  const [periode, setPeriode] = useState("all");
+  const [referenceTemporelle] = useState(() => Date.now());
   const snapshot = useSyncExternalStore(
     subscribeToStorage,
     readStorageSnapshot,
@@ -77,9 +84,17 @@ export default function Dashboard() {
     () => parseDashboardData(snapshot),
     [snapshot]
   );
+  const mesuresAnalysees = useMemo(() => {
+    if (periode === "all") return mesures;
+    const limite = referenceTemporelle - Number(periode) * 24 * 60 * 60 * 1000;
+    return mesures.filter((mesure) => {
+      const timestamp = obtenirTimestamp(mesure);
+      return timestamp !== null && timestamp >= limite;
+    });
+  }, [mesures, periode, referenceTemporelle]);
   const analyse = useMemo(
-    () => analyserGlycemie(mesures, journal),
-    [mesures, journal]
+    () => analyserGlycemie(mesuresAnalysees, journal),
+    [mesuresAnalysees, journal]
   );
   const hasData = analyse.nombreMesures > 0;
 
@@ -90,8 +105,13 @@ export default function Dashboard() {
       <div className="relative mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-7 lg:px-10 lg:py-10">
         <DashboardHeader
           prenom={profil.prenom}
-          nombreMesures={mesures.length}
+          nombreMesures={mesuresAnalysees.length}
         />
+
+        <div className="flex flex-col gap-3 rounded-3xl border border-white/80 bg-white/80 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="text-sm font-semibold text-slate-900">Période analysée</p><p className="text-xs text-slate-500">Les mesures sans date sont incluses uniquement dans « Tout l’historique ».</p></div>
+          <select aria-label="Période analysée" value={periode} onChange={(event) => setPeriode(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100"><option value="7">7 derniers jours</option><option value="14">14 derniers jours</option><option value="30">30 derniers jours</option><option value="all">Tout l’historique</option></select>
+        </div>
 
         <section className="grid gap-5 xl:grid-cols-[0.95fr_1.25fr]">
           <ScoreCard
@@ -101,7 +121,7 @@ export default function Dashboard() {
             maximum={analyse.maximum}
             hasData={hasData}
           />
-          <GlucoseChart mesures={mesures} />
+          <GlucoseChart mesures={mesuresAnalysees} />
         </section>
 
         <MetricCards

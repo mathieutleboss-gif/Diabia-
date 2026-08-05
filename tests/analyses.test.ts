@@ -92,6 +92,17 @@ test("l’analyse du journal conserve une corrélation du même jour", () => {
   assert.match(analyse.journal.message, /hausse de glycémie/);
 });
 
+test("l’analyse du journal respecte précisément la fenêtre de zéro à trois heures", () => {
+  const journal = [{ type: "Repas", description: "Déjeuner", date: "04/08/2026", heure: "12:45" }];
+  const avant = analyserGlycemie([{ glycemie: 220, date: "04/08/2026", heure: "12:30" }], journal);
+  const apresFenetre = analyserGlycemie([{ glycemie: 220, date: "04/08/2026", heure: "15:46" }], journal);
+  const dansFenetre = analyserGlycemie([{ glycemie: 220, date: "04/08/2026", heure: "15:45" }], journal);
+
+  assert.doesNotMatch(avant.journal.message, /hausse de glycémie/);
+  assert.doesNotMatch(apresFenetre.journal.message, /hausse de glycémie/);
+  assert.match(dansFenetre.journal.message, /hausse de glycémie/);
+});
+
 test("les dates calendaires impossibles sont rejetées", () => {
   assert.equal(obtenirTimestamp({ date: "31/02/2026", heure: "12:00" }), null);
 });

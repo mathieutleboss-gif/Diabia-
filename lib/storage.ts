@@ -35,6 +35,7 @@ export function sauvegarderLocal(key: string, value: unknown): boolean {
 
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(new Event("diabia:storage"));
     return true;
   } catch {
     return false;
@@ -47,15 +48,17 @@ function migrerEntreesDatees(value: unknown): unknown[] | null {
   return value.map((entree) => {
     if (!entree || typeof entree !== "object" || Array.isArray(entree)) return entree;
     const objet = entree as Record<string, unknown>;
-    if (typeof objet.timestamp === "string") return entree;
-
     const timestamp = obtenirTimestamp({
       date: typeof objet.date === "string" ? objet.date : undefined,
       heure: typeof objet.heure === "string" ? objet.heure : undefined,
     });
-    return timestamp === null
-      ? entree
-      : { ...objet, timestamp: new Date(timestamp).toISOString() };
+    return {
+      ...objet,
+      ...(typeof objet.id === "string" && objet.id ? {} : { id: crypto.randomUUID() }),
+      ...(typeof objet.timestamp === "string" || timestamp === null
+        ? {}
+        : { timestamp: new Date(timestamp).toISOString() }),
+    };
   });
 }
 
@@ -99,6 +102,7 @@ export function supprimerDonneesLocales(): boolean {
     localStorage.removeItem(STORAGE_KEYS.journal);
     localStorage.removeItem(STORAGE_KEYS.profil);
     localStorage.removeItem(STORAGE_KEYS.version);
+    window.dispatchEvent(new Event("diabia:storage"));
     return true;
   } catch {
     return false;
