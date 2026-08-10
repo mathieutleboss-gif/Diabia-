@@ -74,7 +74,7 @@ export default function GlucoseChart({ mesures }: GlucoseChartProps) {
         ...mesure,
         index,
         glycemie: Number(mesure.glycemie),
-        libelle: mesure.heure || mesure.date || `#${index + 1}`,
+        libelle: [mesure.date, mesure.heure].filter(Boolean).join(" · ") || `#${index + 1}`,
       }))
       .filter((mesure): mesure is ChartPoint => Number.isFinite(mesure.glycemie)),
     [mesures]
@@ -88,7 +88,7 @@ export default function GlucoseChart({ mesures }: GlucoseChartProps) {
     { minimum: Number.POSITIVE_INFINITY, maximum: Number.NEGATIVE_INFINITY }
   );
   const resumeAccessible = donneesCompletes.length
-    ? `${donneesCompletes.length} mesures. Minimum ${statistiquesAccessibles.minimum} mg/dL, maximum ${statistiquesAccessibles.maximum} mg/dL, dernière valeur ${donneesCompletes[donneesCompletes.length - 1].glycemie} mg/dL.`
+    ? `${donneesCompletes.length} mesure${donneesCompletes.length > 1 ? "s" : ""}. Minimum ${statistiquesAccessibles.minimum} mg/dL, maximum ${statistiquesAccessibles.maximum} mg/dL, dernière valeur ${donneesCompletes[donneesCompletes.length - 1].glycemie} mg/dL.`
     : "Aucune mesure glycémique disponible.";
 
   return (

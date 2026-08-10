@@ -9,6 +9,7 @@ import { analyserJournal } from "./analyses/journalAnalyse";
 import { genererInsights } from "./analyses/insights";
 import { trierMesuresChronologiquement } from "./dates";
 import type { AnalyseBase, JournalEntry, Mesure, RapportDiabia } from "./analyses/types";
+import { analyserDonneesAvancees } from "./analyses/analyseAvancee";
 
 export function analyserGlycemie(
   mesures: Mesure[],
@@ -43,6 +44,7 @@ export function analyserGlycemie(
   const score = calculerScore(baseAnalyse);
   const explication = expliquerScore(baseAnalyse, score);
   const insights = genererInsights(baseAnalyse);
+  const avance = analyserDonneesAvancees(mesuresOrdonnees, journal);
 
   return {
     ...baseAnalyse,
@@ -50,6 +52,7 @@ export function analyserGlycemie(
     explication,
     journal: analyseJournal,
     insights,
+    avance,
     resume,
     message: `Moyenne : ${stats.moyenne} mg/dL.
 ${stats.cible}% des mesures dans la cible.

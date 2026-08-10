@@ -7,6 +7,7 @@ import { lireMesuresLocales, lireProfilLocal, sauvegarderLocal } from "../../lib
 import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { ROUTES } from "../../lib/routes";
 import { convertirEnMgDl, exemplePourUnite, type GlucoseUnit } from "../../lib/glucoseUnits";
+import { LIMITES_SAISIE, validerGlycemieMgDl, validerHorodatage, validerInsuline } from "../../lib/saisie";
 
 function valeursDateHeureInitiales() {
   const maintenant = new Date();
@@ -33,20 +34,23 @@ export default function AddMeasure() {
     const valeurSaisie = Number(glycemie.replace(",", "."));
     const valeurGlycemie = convertirEnMgDl(valeurSaisie, unite);
     const valeurInsuline = insuline ? Number(insuline) : 0;
-    if (!Number.isFinite(valeurGlycemie) || valeurGlycemie <= 0) {
-      setErreur("Saisis une glycémie strictement supérieure à zéro.");
+    const erreurGlycemie = validerGlycemieMgDl(valeurGlycemie);
+    if (erreurGlycemie) {
+      setErreur(erreurGlycemie);
       return;
     }
-    if (!Number.isFinite(valeurInsuline) || valeurInsuline < 0) {
-      setErreur("La quantité d’insuline ne peut pas être négative.");
+    const erreurInsuline = validerInsuline(valeurInsuline);
+    if (erreurInsuline) {
+      setErreur(erreurInsuline);
       return;
     }
 
-    const horodatage = new Date(`${date}T${heure}:00`);
-    if (!date || !heure || !Number.isFinite(horodatage.getTime())) {
-      setErreur("Choisis une date et une heure valides.");
+    const validationDate = validerHorodatage(date, heure);
+    if (!validationDate.date) {
+      setErreur(validationDate.erreur || "Choisis une date et une heure valides.");
       return;
     }
+    const horodatage = validationDate.date;
 
     const nouvelleMesure = {
       id: crypto.randomUUID(),
@@ -73,7 +77,7 @@ export default function AddMeasure() {
         <form className="space-y-5" onSubmit={enregistrer}>
           <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
             <FormField label="Glycémie" hint={`obligatoire · saisie en ${unite}`}>
-              <input type="text" inputMode="decimal" className={fieldClassName} value={glycemie} onChange={(e) => setGlycemie(e.target.value)} placeholder={exemplePourUnite(unite)} autoComplete="off" />
+              <input required aria-required="true" type="text" inputMode="decimal" className={fieldClassName} value={glycemie} onChange={(e) => setGlycemie(e.target.value)} placeholder={exemplePourUnite(unite)} autoComplete="off" />
             </FormField>
             <FormField label="Unité">
               <select className={fieldClassName} value={unite} onChange={(event) => setUnite(event.target.value as GlucoseUnit)}>
@@ -92,10 +96,10 @@ export default function AddMeasure() {
             </FormField>
           </div>
           <FormField label="Insuline rapide" hint="facultatif · unités">
-            <input type="number" min="0" step="any" inputMode="decimal" className={fieldClassName} value={insuline} onChange={(e) => setInsuline(e.target.value)} placeholder="4" />
+            <input type="number" min="0" max={LIMITES_SAISIE.insulineMax} step="any" inputMode="decimal" className={fieldClassName} value={insuline} onChange={(e) => setInsuline(e.target.value)} placeholder="4" />
           </FormField>
           <FormField label="Note" hint="facultatif">
-            <textarea className={`${fieldClassName} min-h-32 resize-y`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Repas, sport, ressenti…" />
+            <textarea maxLength={LIMITES_SAISIE.noteMax} className={`${fieldClassName} min-h-32 resize-y`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Repas, sport, ressenti…" />
           </FormField>
           <button type="submit" disabled={!glycemie || !date || !heure} className={primaryButtonClassName}>Enregistrer la mesure</button>
           {erreur && <p role="alert" className="text-sm font-medium text-red-700">{erreur}</p>}

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { analyserGlycemie } from "../lib/analyse";
 import { obtenirTimestamp } from "../lib/dates";
+import { creerPromptDiabia } from "../lib/ia/promptDiabia";
+import type { JournalEntry, Mesure } from "../lib/analyses/types";
 
 test("le score est indisponible sans mesure valide", () => {
   const analyse = analyserGlycemie([], []);
@@ -61,6 +63,16 @@ test("les variations suivent l’ordre chronologique quand toutes les dates sont
   assert.equal(analyse.variations.variations?.[0]?.apres, 200);
 });
 
+test("une mesure sans date n’empêche plus le tri des mesures datées", () => {
+  const analyse = analyserGlycemie([
+    { glycemie: 200, timestamp: "2026-08-04T12:00:00.000Z" },
+    { glycemie: 150, date: "date invalide" },
+    { glycemie: 100, timestamp: "2026-08-04T08:00:00.000Z" },
+  ], []);
+  assert.equal(analyse.variations.variations?.[0]?.avant, 100);
+  assert.equal(analyse.variations.variations?.[0]?.apres, 200);
+});
+
 test("l’analyse du journal exclut les mesures d’un autre jour", () => {
   const analyse = analyserGlycemie(
     [
@@ -105,4 +117,67 @@ test("l’analyse du journal respecte précisément la fenêtre de zéro à troi
 
 test("les dates calendaires impossibles sont rejetées", () => {
   assert.equal(obtenirTimestamp({ date: "31/02/2026", heure: "12:00" }), null);
+});
+
+function mesure(date: string, glycemie: number): Mesure {
+  return { glycemie, timestamp: date, date: new Date(date).toLocaleDateString("fr-FR"), heure: date.slice(11, 16) };
+}
+
+test("un petit échantillon reste explicitement exploratoire", () => {
+  const analyse = analyserGlycemie([mesure("2026-08-04T08:00:00.000Z", 120)], []);
+  assert.equal(analyse.score, 100);
+  assert.equal(analyse.avance.qualite.niveau, "faible");
+  assert.equal(analyse.avance.pointsPositifs.length, 0);
+  assert.match(analyse.avance.resumeGeneral, /exploratoire/);
+  assert.match(analyse.explication.problemes.join(" "), /insuffisant/);
+});
+
+test("une amélioration entre deux fenêtres de sept jours est détectée avec prudence", () => {
+  const mesures: Mesure[] = [];
+  const reference = Date.parse("2026-08-01T12:00:00.000Z");
+  for (let index = 0; index < 12; index += 1) {
+    mesures.push(mesure(new Date(reference - index * 12 * 60 * 60 * 1_000).toISOString(), 120));
+    mesures.push(mesure(new Date(reference - (8 * 24 + index * 12) * 60 * 60 * 1_000).toISOString(), 220));
+  }
+  const analyse = analyserGlycemie(mesures, []);
+  const comparaison = analyse.avance.comparaisons.find(({ periode }) => periode === "7j");
+  assert.ok(comparaison);
+  assert.ok((comparaison.variationCible ?? 0) >= 50);
+  assert.match(comparaison.interpretation, /Amélioration/);
+  assert.ok(analyse.avance.tendances.some(({ titre }) => /Amélioration/.test(titre)));
+});
+
+test("les repas ne deviennent une cause probable qu'après plusieurs associations mesurées", () => {
+  const mesures: Mesure[] = [];
+  const journal: JournalEntry[] = [];
+  for (let jour = 1; jour <= 5; jour += 1) {
+    const prefixe = `2026-07-${String(jour).padStart(2, "0")}`;
+    mesures.push(mesure(`${prefixe}T11:00:00.000Z`, 105));
+    mesures.push(mesure(`${prefixe}T13:00:00.000Z`, 195));
+    journal.push({ type: "Repas", description: "Déjeuner documenté", timestamp: `${prefixe}T12:00:00.000Z` });
+  }
+  const analyse = analyserGlycemie(mesures, journal);
+  const correlation = analyse.avance.correlations.find(({ typeEvenement }) => typeEvenement === "Repas");
+  assert.ok(correlation);
+  assert.equal(correlation.confiance, "élevé");
+  assert.equal(correlation.differenceMoyenne, 90);
+  assert.ok(analyse.avance.causesProbables.some(({ titre }) => /Repas/.test(titre)));
+  assert.match(correlation.conclusion, /sans preuve de causalité/);
+});
+
+test("les valeurs très basses et très hautes produisent des alertes de sécurité distinctes", () => {
+  const analyse = analyserGlycemie([
+    mesure("2026-08-01T08:00:00.000Z", 49),
+    mesure("2026-08-01T12:00:00.000Z", 280),
+  ], []);
+  assert.ok(analyse.avance.alertesSecurite.some(({ niveau, titre }) => niveau === "urgente" && titre.includes("54")));
+  assert.ok(analyse.avance.alertesSecurite.some(({ titre }) => titre.includes("250")));
+});
+
+test("le prompt impose les dix sections, la prudence et la séparation des données", () => {
+  const prompt = creerPromptDiabia("Pourquoi ?", { analyseAvancee: { qualite: { niveau: "faible" } } });
+  for (let section = 1; section <= 10; section += 1) assert.match(prompt, new RegExp(`## ${section}\\.`));
+  assert.match(prompt, /DONNÉES_NON_FIABLES/);
+  assert.match(prompt, /ne poses aucun diagnostic/i);
+  assert.match(prompt, /Confiance : faible\|modérée\|élevée/);
 });

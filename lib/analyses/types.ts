@@ -81,4 +81,91 @@ export type RapportDiabia = AnalyseBase & {
     titre: string;
     remarques: string[];
   };
+  avance: RapportAnalyseAvancee;
+};
+
+export type NiveauConfiance = "faible" | "modéré" | "élevé";
+
+export type ConclusionAnalyse = {
+  id: string;
+  titre: string;
+  conclusion: string;
+  preuves: string[];
+  confiance: NiveauConfiance;
+  justificationConfiance: string;
+};
+
+export type StatistiquesPeriode = {
+  cle: "7j" | "14j" | "30j" | "historique";
+  libelle: string;
+  nombreMesures: number;
+  mesuresDatees: number;
+  joursCouverts: number;
+  moyenne: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  cible: number | null;
+  hyper: number | null;
+  hypo: number | null;
+  hyperSevere: number | null;
+  hypoNiveau2: number | null;
+  coefficientVariation: number | null;
+  confiance: NiveauConfiance;
+};
+
+export type ComparaisonPeriode = {
+  periode: "7j" | "14j" | "30j";
+  libelle: string;
+  actuelle: StatistiquesPeriode;
+  precedente: StatistiquesPeriode;
+  variationMoyenne: number | null;
+  variationCible: number | null;
+  variationHypo: number | null;
+  interpretation: string;
+  confiance: NiveauConfiance;
+};
+
+export type CorrelationJournal = {
+  id: string;
+  typeEvenement: string;
+  description: string;
+  nombreEvenements: number;
+  evenementsExploitables: number;
+  differenceMoyenne: number | null;
+  conclusion: string;
+  preuves: string[];
+  confiance: NiveauConfiance;
+};
+
+export type QualiteDonnees = {
+  nombreMesures: number;
+  mesuresDatees: number;
+  couvertureDatesPourcentage: number;
+  joursCouverts: number;
+  niveau: NiveauConfiance;
+  limites: string[];
+};
+
+export type AlerteSecurite = {
+  niveau: "vigilance" | "urgente";
+  titre: string;
+  message: string;
+  preuves: string[];
+};
+
+export type RapportAnalyseAvancee = {
+  genereLe: string;
+  referenceTemporelle: string | null;
+  qualite: QualiteDonnees;
+  resumeGeneral: string;
+  pointsPositifs: ConclusionAnalyse[];
+  pointsPreoccupants: ConclusionAnalyse[];
+  tendances: ConclusionAnalyse[];
+  correlations: CorrelationJournal[];
+  comparaisons: ComparaisonPeriode[];
+  causesProbables: ConclusionAnalyse[];
+  conseils: ConclusionAnalyse[];
+  priorites: ConclusionAnalyse[];
+  alertesSecurite: AlerteSecurite[];
+  statistiquesPeriodes: StatistiquesPeriode[];
 };

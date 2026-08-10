@@ -14,11 +14,20 @@ export function expliquerScore(analyse: AnalyseBase, score: number | null) {
   const problemes: string[] = [];
   const remarques: string[] = [];
 
+  if (analyse.nombreMesures < 5) {
+    return {
+      score,
+      positif: [],
+      problemes: ["Échantillon insuffisant pour évaluer un équilibre glycémique."],
+      conseils: ["Ajoute au moins cinq mesures datées, réparties sur plusieurs jours, avant d’interpréter le score."],
+    };
+  }
+
   if (analyse.cible >= 80) {
     positif.push(`Très bonne stabilité : ${analyse.cible}% des mesures sont dans la cible.`);
   } else if (analyse.cible >= 50) {
     positif.push(
-      `${analyse.cible}% des mesures sont dans la cible. Une partie de la journée est bien maîtrisée.`
+      `${analyse.cible}% des mesures sont dans la cible sur l’échantillon disponible.`
     );
   } else {
     positif.push(
@@ -58,7 +67,7 @@ export function expliquerScore(analyse: AnalyseBase, score: number | null) {
       "Diabia conseille de se concentrer d'abord sur les grandes variations plutôt que sur les petits écarts."
     );
   } else if (analyse.cible >= 70) {
-    remarques.push("La base est bonne, les prochaines améliorations concernent surtout la régularité.");
+    remarques.push("L’échantillon observé est encourageant ; la régularité reste à confirmer dans le temps.");
   }
 
   return { score, positif, problemes, conseils: remarques };

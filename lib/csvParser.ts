@@ -1,6 +1,7 @@
 import type { Mesure } from "./analyses/types";
 import { obtenirTimestamp } from "./dates";
 import { convertirEnMgDl, type GlucoseUnit } from "./glucoseUnits";
+import { LIMITES_SAISIE, validerGlycemieMgDl, validerInsuline } from "./saisie";
 
 type CsvRow = Record<string, unknown>;
 
@@ -8,6 +9,7 @@ export type CsvParseResult = {
   mesures: Mesure[];
   lignesRejetees: number;
   colonnesDetectees: string[];
+  rejets: Array<{ ligne: number; raison: string }>;
 };
 
 const aliases = {
@@ -45,16 +47,19 @@ export function analyserCSVDetaille(
   const colonnesDetectees = Array.from(new Set(lignes.flatMap((ligne) => Object.keys(ligne))));
   let lignesRejetees = 0;
   const mesures: Mesure[] = [];
+  const rejets: Array<{ ligne: number; raison: string }> = [];
 
-  lignes.forEach((ligneBrute) => {
+  lignes.forEach((ligneBrute, index) => {
     const ligne = normaliserLigne(ligneBrute);
     const glycemieBrute = lireChamp(ligne, aliases.glycemie);
     const dateBrute = lireChamp(ligne, aliases.date);
     const heureBrute = lireChamp(ligne, aliases.heure);
     const valeurGlycemie = convertirEnMgDl(lireNombre(glycemieBrute), unite);
 
-    if (!Number.isFinite(valeurGlycemie) || valeurGlycemie <= 0 || !dateBrute) {
+    const erreurGlycemie = validerGlycemieMgDl(valeurGlycemie);
+    if (erreurGlycemie || !dateBrute) {
       lignesRejetees += 1;
+      rejets.push({ ligne: index + 2, raison: erreurGlycemie || "Date obligatoire manquante." });
       return;
     }
 
@@ -63,24 +68,37 @@ export function analyserCSVDetaille(
     const timestamp = obtenirTimestamp({ date, heure });
     if (timestamp === null) {
       lignesRejetees += 1;
+      rejets.push({ ligne: index + 2, raison: "Date ou heure invalide." });
+      return;
+    }
+    if (timestamp > Date.now() + 5 * 60 * 1_000) {
+      lignesRejetees += 1;
+      rejets.push({ ligne: index + 2, raison: "Date située dans le futur." });
       return;
     }
 
     const insulineBrute = lireChamp(ligne, aliases.insuline);
     const valeurInsuline = lireNombre(insulineBrute);
     const noteBrute = lireChamp(ligne, aliases.note);
+    const insuline = Number.isFinite(valeurInsuline) ? valeurInsuline : 0;
+    const erreurInsuline = validerInsuline(insuline);
+    if (erreurInsuline) {
+      lignesRejetees += 1;
+      rejets.push({ ligne: index + 2, raison: erreurInsuline });
+      return;
+    }
     mesures.push({
       id: crypto.randomUUID(),
       glycemie: valeurGlycemie,
-      insuline: Number.isFinite(valeurInsuline) && valeurInsuline >= 0 ? valeurInsuline : 0,
+      insuline,
       date,
       ...(heure ? { heure } : {}),
       timestamp: new Date(timestamp).toISOString(),
-      note: noteBrute ? String(noteBrute).trim() : "Import CSV",
+      note: noteBrute ? String(noteBrute).trim().slice(0, LIMITES_SAISIE.noteMax) : "Import CSV",
     });
   });
 
-  return { mesures, lignesRejetees, colonnesDetectees };
+  return { mesures, lignesRejetees, colonnesDetectees, rejets };
 }
 
 export function analyserCSV(lignes: CsvRow[], unite: GlucoseUnit = "mg/dL"): Mesure[] {

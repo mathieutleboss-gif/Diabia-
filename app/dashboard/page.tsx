@@ -101,7 +101,7 @@ export default function Dashboard() {
   const hasData = analyse.nombreMesures > 0;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">
+    <main id="contenu-principal" tabIndex={-1} className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,0.13),transparent_34%),radial-gradient(circle_at_85%_0%,rgba(139,92,246,0.10),transparent_28%)]" />
 
       <div className="relative mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-7 lg:px-10 lg:py-10">
@@ -128,13 +128,13 @@ export default function Dashboard() {
             </div>
 
             <section className="grid gap-5 xl:grid-cols-[0.95fr_1.25fr]">
-              <ScoreCard score={analyse.score} moyenne={analyse.moyenne} minimum={analyse.minimum} maximum={analyse.maximum} hasData={hasData} />
+              <ScoreCard score={analyse.score} moyenne={analyse.moyenne} minimum={analyse.minimum} maximum={analyse.maximum} hasData={hasData} nombreMesures={analyse.nombreMesures} confiance={analyse.avance.qualite.niveau} />
               <GlucoseChart mesures={mesuresAnalysees} />
             </section>
 
             <MetricCards cible={analyse.cible} hyper={analyse.hyper} hypo={analyse.hypo} variations={analyse.variations.nombre} hasData={hasData} />
 
-            <InsightsPanel analyse={analyse} hasData={hasData} />
+        <InsightsPanel analyse={analyse} hasData={hasData} />
           </>
         )}
 

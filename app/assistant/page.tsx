@@ -12,6 +12,17 @@ import { ROUTES } from "../../lib/routes";
 
 type EtatOllama = { statut: "verification" | "pret" | "indisponible" | "modele-manquant"; modele: string };
 
+function RapportStructure({ contenu }: { contenu: string }) {
+  const sections = contenu.split(/(?=^##\s)/m).map((section) => section.trim()).filter(Boolean);
+  return <div className="mt-3 space-y-5">{sections.map((section, index) => {
+    const lignes = section.split("\n").map((ligne) => ligne.trim()).filter(Boolean);
+    const titre = lignes[0]?.startsWith("## ") ? lignes.shift()?.replace(/^##\s*/, "") : index === 0 ? "Réponse" : undefined;
+    const items = lignes.filter((ligne) => ligne.startsWith("- "));
+    const paragraphes = lignes.filter((ligne) => !ligne.startsWith("- "));
+    return <section key={`${titre || "section"}-${index}`} className="rounded-2xl bg-white/70 p-4">{titre && <h3 className="font-semibold text-slate-900">{titre}</h3>}{paragraphes.map((ligne, ligneIndex) => <p key={`${ligne}-${ligneIndex}`} className="mt-2 text-sm leading-7 text-slate-700">{ligne}</p>)}{items.length > 0 && <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">{items.map((ligne, ligneIndex) => <li key={`${ligne}-${ligneIndex}`}>{ligne.slice(2)}</li>)}</ul>}</section>;
+  })}</div>;
+}
+
 export default function Assistant() {
   const snapshot = useSyncExternalStore(
     (callback) => { window.addEventListener("storage", callback); window.addEventListener("diabia:storage", callback); return () => { window.removeEventListener("storage", callback); window.removeEventListener("diabia:storage", callback); }; },
@@ -23,6 +34,7 @@ export default function Assistant() {
   const [reponse, setReponse] = useState("");
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(false);
+  const [controleur, setControleur] = useState<AbortController | null>(null);
   const [ollama, setOllama] = useState<EtatOllama>({ statut: "verification", modele: "" });
 
   useEffect(() => {
@@ -38,20 +50,22 @@ export default function Assistant() {
     event.preventDefault();
     if (!question.trim() || !hasData || ollama.statut !== "pret") return;
     setChargement(true); setErreur("");
+    const controller = new AbortController();
+    setControleur(controller);
     try {
       const mesures = lireMesuresLocales();
       const profil = lireProfilLocal();
       const journal = lireJournalLocal();
       const rapport = creerRapportIA(analyserGlycemie(mesures, journal), profil, journal, mesures);
-      const resultat = await fetch(ROUTES.apiAssistant, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, rapport }) });
+      const resultat = await fetch(ROUTES.apiAssistant, { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ question, rapport }) });
       const data = (await resultat.json()) as { reponse?: string; error?: string };
       if (!resultat.ok || !data.reponse) throw new Error(data.error || "Réponse indisponible.");
       setReponse(data.reponse);
-    } catch (error) { setErreur(error instanceof Error ? error.message : "Impossible de contacter Diabia."); }
-    finally { setChargement(false); }
+    } catch (error) { setErreur(error instanceof Error && error.name === "AbortError" ? "Analyse annulée." : error instanceof Error ? error.message : "Impossible de contacter Diabia."); }
+    finally { setChargement(false); setControleur(null); }
   }
 
-  const etatTexte = ollama.statut === "verification" ? "Vérification d’Ollama…" : ollama.statut === "pret" ? `Ollama prêt · ${ollama.modele}` : ollama.statut === "modele-manquant" ? `Modèle ${ollama.modele} non installé` : "Ollama n’est pas joignable";
+  const etatTexte = ollama.statut === "verification" ? "Vérification d’Ollama…" : ollama.statut === "pret" ? `Ollama connecté · modèle ${ollama.modele} détecté` : ollama.statut === "modele-manquant" ? `Modèle ${ollama.modele} non installé` : "Ollama n’est pas joignable";
 
   return (
     <PageShell width="max-w-5xl">
@@ -59,9 +73,9 @@ export default function Assistant() {
       <div className="grid gap-5 lg:grid-cols-[1fr_0.55fr]">
         <GlassPanel>
           <div role="status" className={`mb-5 rounded-2xl px-4 py-3 text-sm font-medium ${ollama.statut === "pret" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{etatTexte}</div>
-          {!hasData ? <div className="rounded-3xl bg-blue-50 p-6"><h2 className="font-semibold text-slate-950">Ajoute d’abord des mesures</h2><p className="mt-2 text-sm text-slate-600">L’assistant a besoin de données réelles pour répondre sans inventer.</p><div className="mt-4 flex gap-3"><Link href={ROUTES.ajoutMesure} className={primaryButtonClassName}>Ajouter une mesure</Link><Link href={ROUTES.import} className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-blue-700">Importer</Link></div></div> : <form onSubmit={envoyer}><label htmlFor="question-assistant" className="text-sm font-semibold text-slate-800">Question pour Diabia</label><textarea id="question-assistant" maxLength={1000} className={`${fieldClassName} mt-2 min-h-40 resize-y text-base`} placeholder="Pourquoi mon score est-il bas ?" value={question} onChange={(e) => setQuestion(e.target.value)} /><p className="mt-2 text-right text-xs text-slate-400">{question.length} / 1 000</p><button type="submit" disabled={chargement || !question.trim() || ollama.statut !== "pret"} className={`mt-4 ${primaryButtonClassName}`}>{chargement ? "Analyse en cours…" : "Demander à Diabia"}</button></form>}
+          {!hasData ? <div className="rounded-3xl bg-blue-50 p-6"><h2 className="font-semibold text-slate-950">Ajoute d’abord des mesures</h2><p className="mt-2 text-sm text-slate-600">L’assistant a besoin de données réelles pour répondre sans inventer.</p><div className="mt-4 flex gap-3"><Link href={ROUTES.ajoutMesure} className={primaryButtonClassName}>Ajouter une mesure</Link><Link href={ROUTES.import} className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-blue-700">Importer</Link></div></div> : <form onSubmit={envoyer}><label htmlFor="question-assistant" className="text-sm font-semibold text-slate-800">Question pour Diabia</label><textarea id="question-assistant" maxLength={1000} className={`${fieldClassName} mt-2 min-h-40 resize-y text-base`} placeholder="Pourquoi mon score est-il bas ?" value={question} onChange={(e) => setQuestion(e.target.value)} /><p className="mt-2 text-right text-xs text-slate-400">{question.length} / 1 000</p><div className="mt-4 flex flex-wrap gap-3"><button type="submit" disabled={chargement || !question.trim() || ollama.statut !== "pret"} className={primaryButtonClassName}>{chargement ? "Analyse en cours…" : "Demander à Diabia"}</button>{chargement && <button type="button" onClick={() => controleur?.abort()} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">Annuler</button>}</div>{chargement && <p role="status" className="mt-3 text-xs text-slate-500">Le premier chargement du modèle local peut prendre jusqu’à 90 secondes.</p>}</form>}
           {erreur && <div role="alert" className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">{erreur}</div>}
-          {reponse && <div aria-live="polite" className="mt-6 rounded-3xl bg-blue-50/80 p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Réponse</p><p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-700">{reponse}</p></div>}
+          {reponse && <div aria-live="polite" className="mt-6 rounded-3xl bg-blue-50/80 p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Rapport d’analyse</p><RapportStructure contenu={reponse} /><p className="mt-4 text-xs leading-5 text-slate-500">Rapport informatif fondé uniquement sur les données disponibles. Il ne remplace pas une consultation et ne doit pas servir à modifier un traitement.</p></div>}
         </GlassPanel>
         <aside className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-xl"><span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-white/10 text-2xl">✦</span><h2 className="mt-6 text-xl font-semibold">Activer l’assistant sur cet ordinateur</h2><p className="mt-3 text-sm leading-6 text-slate-300">L’assistant nécessite l’application Ollama. Une fois Ollama installé, lance ces deux commandes dans le Terminal :</p><div className="mt-4 space-y-2"><code className="block overflow-x-auto rounded-xl bg-white/10 px-3 py-2 text-xs">ollama serve</code><code className="block overflow-x-auto rounded-xl bg-white/10 px-3 py-2 text-xs">ollama pull {ollama.modele || "llama3.2:3b"}</code></div><details className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400"><summary className="cursor-pointer font-semibold text-slate-200">Configuration d’un serveur distant</summary><p className="mt-2">En déploiement distant, « localhost » désigne le serveur hébergeant Diabia. La variable OLLAMA_URL doit être configurée sur ce serveur.</p></details></aside>
       </div>

@@ -48,10 +48,13 @@ export function trierMesuresChronologiquement(mesures: Mesure[]): Mesure[] {
     timestamp: obtenirTimestamp(mesure),
   }));
 
-  if (mesuresDatees.some(({ timestamp }) => timestamp === null)) return mesures;
-
   return mesuresDatees
-    .sort((a, b) => (a.timestamp as number) - (b.timestamp as number) || a.index - b.index)
+    .sort((a, b) => {
+      if (a.timestamp === null && b.timestamp === null) return a.index - b.index;
+      if (a.timestamp === null) return 1;
+      if (b.timestamp === null) return -1;
+      return a.timestamp - b.timestamp || a.index - b.index;
+    })
     .map(({ mesure }) => mesure);
 }
 

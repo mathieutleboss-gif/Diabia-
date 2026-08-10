@@ -4,6 +4,8 @@ type ScoreCardProps = {
   maximum: number;
   minimum: number;
   hasData: boolean;
+  nombreMesures: number;
+  confiance: "faible" | "modéré" | "élevé";
 };
 
 function scoreLabel(score: number) {
@@ -19,9 +21,12 @@ export default function ScoreCard({
   maximum,
   minimum,
   hasData,
+  nombreMesures,
+  confiance,
 }: ScoreCardProps) {
+  const interpretable = hasData && nombreMesures >= 5 && confiance !== "faible";
   const scoreAffiche = score ?? 0;
-  const angle = hasData ? Math.max(0, Math.min(100, scoreAffiche)) * 3.6 : 0;
+  const angle = interpretable ? Math.max(0, Math.min(100, scoreAffiche)) * 3.6 : 0;
 
   return (
     <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_55px_-32px_rgba(15,23,42,0.4)] backdrop-blur-xl sm:p-8">
@@ -54,7 +59,7 @@ export default function ScoreCard({
             <div className="grid size-full place-items-center rounded-full bg-white shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]">
               <div className="text-center">
                 <strong className="block text-5xl font-semibold tracking-[-0.06em] text-slate-950">
-                  {hasData ? scoreAffiche : "—"}
+                  {interpretable ? scoreAffiche : "—"}
                 </strong>
                 <span className="text-sm font-medium text-slate-400">sur 100</span>
               </div>
@@ -63,12 +68,12 @@ export default function ScoreCard({
 
           <div className="w-full">
             <p className="text-lg font-semibold text-slate-900">
-              {hasData ? scoreLabel(scoreAffiche) : "Ajoute des données pour commencer"}
+              {!hasData ? "Ajoute des données pour commencer" : interpretable ? scoreLabel(scoreAffiche) : "Score en attente de données suffisantes"}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              {hasData
+              {interpretable
                 ? "Ce score combine la proportion de mesures dans la cible, les mesures hors cible et les écarts consécutifs importants."
-                : "Le score ne sera affiché qu’après l’enregistrement d’au moins une mesure."}
+                : hasData ? nombreMesures < 5 ? `Encore ${5 - nombreMesures} mesure${5 - nombreMesures > 1 ? "s" : ""} nécessaire${5 - nombreMesures > 1 ? "s" : ""} avant d’afficher le score.` : "Répartis les mesures sur au moins trois jours pour rendre le score interprétable." : "Le score sera affiché après l’enregistrement d’au moins cinq mesures."}
             </p>
 
             <dl className="mt-5 grid grid-cols-3 gap-2">

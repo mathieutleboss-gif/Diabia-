@@ -3,6 +3,10 @@ import type { AnalyseBase } from "./types";
 export function genererInsights(analyse: AnalyseBase) {
   const remarques: string[] = [];
 
+  if (analyse.nombreMesures < 5) {
+    return { titre: "Ce que Diabia remarque", remarques: ["Échantillon insuffisant pour identifier une tendance fiable."] };
+  }
+
   if (analyse.cible >= 80) remarques.push("Excellente proportion de mesures dans la cible sur cette période.");
   if (analyse.cible < 60) remarques.push("La proportion de mesures dans la cible reste faible.");
   if (analyse.hyper > 30) remarques.push("Les hyperglycémies représentent une part importante des mesures.");

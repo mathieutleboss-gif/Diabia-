@@ -5,6 +5,10 @@ export function creerResume(analyse: AnalyseBase) {
   const attention: string[] = [];
   const alertes: string[] = [];
 
+  if (analyse.nombreMesures < 5) {
+    return { positif, attention: ["Trop peu de mesures pour résumer l’équilibre glycémique."], alertes };
+  }
+
   if (analyse.cible >= 70) {
     positif.push("La majorité des glycémies sont dans la cible.");
   } else {

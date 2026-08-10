@@ -27,7 +27,7 @@ function MetricCard({ metric, hasData }: { metric: Metric; hasData: boolean }) {
           <p className={`mt-2 text-3xl font-semibold tracking-[-0.04em] ${metric.color}`}>
             {hasData ? metric.value : "—"}
             <span className="ml-1 text-sm font-semibold text-slate-400">
-              {metric.label === "Variations" ? "pics" : "%"}
+              {metric.label === "Variations" ? ` pic${metric.value > 1 ? "s" : ""}` : "%"}
             </span>
           </p>
         </div>
@@ -35,12 +35,12 @@ function MetricCard({ metric, hasData }: { metric: Metric; hasData: boolean }) {
           {metric.icon}
         </span>
       </div>
-      <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+      {metric.label !== "Variations" && <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           className={`h-full rounded-full transition-all duration-700 ${metric.progressColor}`}
-          style={{ width: metric.label === "Variations" ? `${Math.min(progress * 4, 100)}%` : `${progress}%` }}
+          style={{ width: `${progress}%` }}
         />
-      </div>
+      </div>}
       <p className="mt-3 text-xs leading-5 text-slate-400">{metric.description}</p>
     </article>
   );

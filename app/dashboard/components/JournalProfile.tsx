@@ -49,7 +49,7 @@ export default function JournalProfile({ journal, profil }: JournalProfileProps)
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-slate-900">{item.type || "Événement"}</p>
-                    <time className="shrink-0 text-xs font-medium text-slate-400">{item.heure || item.date || ""}</time>
+                    <time className="shrink-0 text-xs font-medium text-slate-400">{[item.date, item.heure].filter(Boolean).join(" · ")}</time>
                   </div>
                   <p className="mt-0.5 truncate text-sm text-slate-500">{item.description || "Aucune description"}</p>
                 </div>

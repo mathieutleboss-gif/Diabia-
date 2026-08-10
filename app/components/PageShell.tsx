@@ -3,7 +3,7 @@ import { ROUTES } from "../../lib/routes";
 
 export function PageShell({ children, width = "max-w-6xl" }: { children: React.ReactNode; width?: string }) {
   return (
-    <main className="relative min-h-[calc(100vh-65px)] overflow-hidden bg-[#f3f6fb]">
+    <main id="contenu-principal" tabIndex={-1} className="relative min-h-[calc(100vh-65px)] overflow-hidden bg-[#f3f6fb]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(circle_at_15%_5%,rgba(59,130,246,0.14),transparent_32%),radial-gradient(circle_at_90%_0%,rgba(139,92,246,0.10),transparent_28%)]" />
       <div className={`relative mx-auto w-full ${width} px-4 py-8 sm:px-6 sm:py-12 lg:px-8`}>
         {children}

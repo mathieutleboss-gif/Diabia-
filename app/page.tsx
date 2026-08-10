@@ -9,7 +9,7 @@ const features = [
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">
+    <main id="contenu-principal" tabIndex={-1} className="relative min-h-screen overflow-hidden bg-[#f3f6fb]">
       <div className="absolute inset-x-0 top-0 h-[700px] bg-[radial-gradient(circle_at_20%_15%,rgba(37,99,235,0.18),transparent_35%),radial-gradient(circle_at_85%_5%,rgba(34,211,238,0.13),transparent_30%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
         <section className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">

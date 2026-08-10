@@ -30,12 +30,12 @@ export function lireProfilLocal(): ProfilDiabia {
   return normaliserProfil(lireJsonLocal(STORAGE_KEYS.profil, {}));
 }
 
-export function sauvegarderLocal(key: string, value: unknown): boolean {
+export function sauvegarderLocal(key: string, value: unknown, options: { notifier?: boolean } = {}): boolean {
   if (typeof window === "undefined") return false;
 
   try {
     localStorage.setItem(key, JSON.stringify(value));
-    window.dispatchEvent(new Event("diabia:storage"));
+    if (options.notifier !== false) window.dispatchEvent(new Event("diabia:storage"));
     return true;
   } catch {
     return false;
@@ -105,6 +105,37 @@ export function supprimerDonneesLocales(): boolean {
     window.dispatchEvent(new Event("diabia:storage"));
     return true;
   } catch {
+    return false;
+  }
+}
+
+export function restaurerDonneesLocales(value: unknown): boolean {
+  if (typeof window === "undefined" || !value || typeof value !== "object" || Array.isArray(value)) return false;
+  const donnees = value as Record<string, unknown>;
+  if (!Array.isArray(donnees.mesures) || !Array.isArray(donnees.journal) || !donnees.profil || typeof donnees.profil !== "object") return false;
+  const mesures = normaliserMesures(donnees.mesures);
+  const journal = normaliserJournal(donnees.journal);
+  const profil = normaliserProfil(donnees.profil);
+  if (mesures.length !== donnees.mesures.length || journal.length !== donnees.journal.length) return false;
+  const sauvegarde = {
+    mesures: localStorage.getItem(STORAGE_KEYS.mesures),
+    journal: localStorage.getItem(STORAGE_KEYS.journal),
+    profil: localStorage.getItem(STORAGE_KEYS.profil),
+    version: localStorage.getItem(STORAGE_KEYS.version),
+  };
+  try {
+    localStorage.setItem(STORAGE_KEYS.mesures, JSON.stringify(mesures));
+    localStorage.setItem(STORAGE_KEYS.journal, JSON.stringify(journal));
+    localStorage.setItem(STORAGE_KEYS.profil, JSON.stringify(profil));
+    localStorage.setItem(STORAGE_KEYS.version, String(STORAGE_VERSION));
+    window.dispatchEvent(new Event("diabia:storage"));
+    return true;
+  } catch {
+    Object.entries(sauvegarde).forEach(([nom, contenu]) => {
+      const cle = STORAGE_KEYS[nom as keyof typeof STORAGE_KEYS];
+      if (contenu === null) localStorage.removeItem(cle);
+      else localStorage.setItem(cle, contenu);
+    });
     return false;
   }
 }
