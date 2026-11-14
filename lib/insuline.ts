@@ -1,4 +1,4 @@
-import type { Mesure } from "./analyses/types";
+import type { InjectionInsuline, Mesure } from "./analyses/types";
 import { obtenirTimestamp } from "./dates";
 import { LIMITES_SAISIE } from "./saisie";
 
@@ -11,11 +11,12 @@ export function lireDoseInsuline(value: Mesure["insuline"]): number | null {
 export function formaterDose(dose: number): string {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 3 }).format(dose);
 }
-export function resumerInsuline(mesures: Mesure[]) {
-  const renseignees = mesures.flatMap(mesure => {
+export function resumerInsuline(mesures: Mesure[], independantes: InjectionInsuline[] = []) {
+  const mesuresRenseignees = mesures.flatMap(mesure => {
     const dose = lireDoseInsuline(mesure.insuline);
     return dose === null ? [] : [{ ...mesure, dose, temps: obtenirTimestamp(mesure) }];
   });
+  const renseignees = [...mesuresRenseignees, ...independantes.filter(i => lireDoseInsuline(i.dose) !== null).map(i => ({...i, dose:i.dose, temps:obtenirTimestamp(i)}))];
   const injections = renseignees.filter(mesure => mesure.dose > 0).sort((a,b) => (b.temps ?? -Infinity) - (a.temps ?? -Infinity));
   const jours = new Map<string, { cle: string; label: string; total: number; saisies: number }>();
   for (const mesure of renseignees) {
@@ -26,5 +27,5 @@ export function resumerInsuline(mesures: Mesure[]) {
     jour.total += mesure.dose; jour.saisies++;
     jours.set(cle, jour);
   }
-  return { total: renseignees.reduce((sum,mesure) => sum + mesure.dose,0), renseignees: renseignees.length, manquantes: mesures.length-renseignees.length, injections, jours: [...jours.values()].sort((a,b) => a.cle.localeCompare(b.cle)) };
+  return { total: renseignees.reduce((sum,mesure) => sum + mesure.dose,0), renseignees: renseignees.length, manquantes: mesures.length-mesuresRenseignees.length, injections, jours: [...jours.values()].sort((a,b) => a.cle.localeCompare(b.cle)) };
 }

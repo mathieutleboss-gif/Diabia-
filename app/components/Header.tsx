@@ -9,9 +9,11 @@ const links = [
   ["Tableau de bord", ROUTES.dashboard],
   ["Mesures", ROUTES.mesures],
   ["Importer", ROUTES.import],
+  ["Insuline", "/insulin"],
   ["Journal", ROUTES.journal],
   ["Assistant", ROUTES.assistant],
   ["Profil", ROUTES.profil],
+  ["Compte", "/account"],
   ["Aide", ROUTES.aide],
 ];
 
@@ -41,10 +43,10 @@ export default function Header() {
           <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-sm font-bold text-white shadow-lg shadow-blue-500/20">D</span>
           <span className="text-xl">Diabia</span>
         </Link>
-        <nav className="hidden items-center gap-1 rounded-2xl bg-slate-100/80 p-1 md:flex" aria-label="Navigation principale">{navigation()}</nav>
-        <button type="button" aria-expanded={menuOuvert} aria-controls="navigation-mobile" onClick={() => setMenuOuvert(!menuOuvert)} className="grid size-11 place-items-center rounded-2xl bg-slate-100 text-xl text-slate-800 md:hidden"><span className="sr-only">{menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}</span><span aria-hidden="true">{menuOuvert ? "×" : "☰"}</span></button>
+        <nav className="hidden items-center gap-1 rounded-2xl bg-slate-100/80 p-1 xl:flex" aria-label="Navigation principale">{navigation()}</nav>
+        <button type="button" aria-expanded={menuOuvert} aria-controls="navigation-mobile" onClick={() => setMenuOuvert(!menuOuvert)} className="grid size-11 place-items-center rounded-2xl bg-slate-100 text-xl text-slate-800 xl:hidden"><span className="sr-only">{menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}</span><span aria-hidden="true">{menuOuvert ? "×" : "☰"}</span></button>
       </div>
-      {menuOuvert && <nav id="navigation-mobile" aria-label="Navigation mobile" className="grid gap-1 border-t border-slate-100 bg-white p-3 md:hidden">{navigation(true)}</nav>}
+      {menuOuvert && <nav id="navigation-mobile" aria-label="Navigation mobile" className="grid gap-1 border-t border-slate-100 bg-white p-3 xl:hidden">{navigation(true)}</nav>}
     </header>
   );
 }

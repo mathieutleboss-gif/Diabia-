@@ -16,6 +16,13 @@ export function sauvegardeValide(value: unknown): value is Record<string, unknow
     if (!objet(row) || validerGlycemieMgDl(nombre(row.glycemie)) || !dateValide(row) || !chaine(row.id,200) || !chaine(row.note,LIMITES_SAISIE.noteMax)) return false;
     if (row.insuline !== undefined && row.insuline !== "" && validerInsuline(nombre(row.insuline))) return false;
   }
+  if (value.injections !== undefined) {
+    if (!Array.isArray(value.injections)) return false;
+    for (const row of value.injections) {
+      if (!objet(row) || typeof row.dose !== "number" || validerInsuline(row.dose) || !chaine(row.id,200) || typeof row.timestamp !== "string" || !row.timestamp || typeof row.date !== "string" || !dateValide(row) || !chaine(row.note,LIMITES_SAISIE.noteMax)) return false;
+      if (row.type !== undefined && !["non_precise","rapide","basale"].includes(String(row.type))) return false;
+    }
+  }
   for (const row of value.journal) {
     if (!objet(row) || !chaine(row.id,200) || !chaine(row.type,100) || !chaine(row.description,LIMITES_SAISIE.descriptionMax) || !dateValide(row)) return false;
   }

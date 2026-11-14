@@ -51,3 +51,11 @@ npm run build
 ```
 
 Architecture : `app/` pages et API ; `lib/analyses/` règles statistiques ; `lib/storage.ts` stockage, migration, export et suppression ; `lib/ia/cloud.ts` identité et quotas ; `tests/` régressions.
+
+## Connexion et import des injections
+
+La démonstration Sites utilise désormais un Worker pour `/api/session`, qui vérifie l’identité injectée par le proxy Sites. La page Compte explique la connexion ChatGPT, la récupération explicite de l’ancien historique et l’effacement de l’espace local actif. Aucun mot de passe Diabia n’est collecté, aucune base médicale distante n’est créée. Cette identité ne doit pas être acceptée depuis des en-têtes clients sur un autre hébergement non protégé.
+
+`npm run build:site` construit les pages exportées et les ressources embarquées dans `dist/server/index.js`. Les routes API Next de la source restent disponibles pour la construction serveur standard, mais ne sont pas intégrées à l’export du navigateur. Le script les remet en place même en cas d’échec ; une construction interrompue demande une récupération explicite de `.sites-build`.
+
+L’import guidé conserve les injections du CSV sans créer de glycémie fictive. Il accepte un choix explicite des colonnes et refuse les débits U/h comme doses. Le fichier `public/examples/diabia-exemple.csv` est entièrement fictif ; il ne valide pas la compatibilité d’un appareil réel. La sauvegarde JSON version 3 inclut les injections indépendantes et accepte encore les anciennes versions.

@@ -14,3 +14,8 @@
 12. Tester sur mobile, zoom 200 %, Chrome, Firefox et Safari. Les tests automatiques ne remplacent pas ces essais.
 13. Effacer le stockage uniquement dans un navigateur de test : aucun reliquat de profil, mesures ou journal.
 14. Avec un backend réel, deux comptes distincts doivent rester isolés ; dépasser le plafond individuel et le plafond partagé doit bloquer tout appel supplémentaire au fournisseur.
+
+15. Ouvrir Compte : vérifier la session ChatGPT. Copier l’ancien historique uniquement s’il appartient à l’utilisateur. Vérifier qu’un autre espace n’affiche pas les données du premier.
+16. Importer un CSV fictif avec une ligne d’injection sans glycémie et une dose à zéro : vérifier leur conservation et les totaux.
+17. Réimporter le même fichier et vérifier qu’aucune dose n’est recomptée. Ne jamais choisir une colonne en U/h comme dose.
+18. Exporter/restaurer un JSON version 3 puis un ancien JSON version 2 : les injections doivent être conservées dans le premier cas et vides dans le second, sans perte de mesures.

@@ -6,7 +6,7 @@ export default function StorageMigration() {
   const [etat,setEtat] = useState<"ok" | "bloque" | "corrompu">("ok");
   useEffect(() => {
     function verifier() { const status = verifierStockage(); setEtat(status === "ok" && !migrerStockageLocal() ? "bloque" : status); }
-    const synchroniser = (event: StorageEvent) => { if (event.key !== "diabia_storage_probe") verifier(); };
+    const synchroniser = (event: StorageEvent) => { if (!event.key?.endsWith("diabia_storage_probe")) verifier(); };
     verifier(); window.addEventListener("diabia:storage",verifier); window.addEventListener("storage",synchroniser);
     return () => { window.removeEventListener("diabia:storage",verifier); window.removeEventListener("storage",synchroniser); };
   }, []);

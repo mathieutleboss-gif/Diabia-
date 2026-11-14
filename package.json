@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js"
+    "test": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js && node --test tests/*.test.mjs",
+    "build:site": "node scripts/build-site.mjs"
   },
   "dependencies": {
     "next": "16.4.6",

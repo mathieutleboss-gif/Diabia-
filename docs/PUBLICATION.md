@@ -2,6 +2,14 @@
 
 Mis à jour le 14 novembre 2026. Ce document décrit l’état technique ; il ne certifie ni conformité juridique ni efficacité clinique.
 
+## Derniers ajouts : compte et import d’insuline
+
+- Connexion ChatGPT vérifiée côté serveur, page Compte, déconnexion et espaces locaux distincts par identité ; mode invité explicite si la session ne peut pas être confirmée.
+- L’ancien historique du navigateur n’est ni supprimé ni automatiquement attribué à un compte. Une copie explicite dans un espace vide est proposée sur la page Compte.
+- Import guidé : choix de l’en-tête et correspondance des colonnes, glycémie secondaire facultative, doses sur lignes indépendantes et deux colonnes d’insuline possibles. Les débits U/h sont refusés comme doses.
+- Page Insuline : saisie sans glycémie, modification, suppression et export CSV des injections ; inclusion dans le tableau de bord et les sauvegardes JSON version 3. Les sauvegardes versions 1 et 2 restent restaurables.
+- Détection de titres de colonnes courants, pas une certification de compatibilité constructeur. Sans fichier représentatif de l’appareil visé, le format réel reste à vérifier.
+
 ## Disponible dans la démonstration privée
 
 - Saisie, édition, suppression, historique et graphiques des mesures.
@@ -16,7 +24,7 @@ Mis à jour le 14 novembre 2026. Ce document décrit l’état technique ; il ne
 - Indicateur Diabia présenté comme expérimental, sans validation clinique.
 - Dépendances mises à jour ; vérifications automatiques préparées dans `.github/workflows/verify.yml`.
 
-Le site de consultation reste privé : https://diabia-demo.validpika65.chatgpt.site . La copie Sites est statique. La route IA serveur existe dans la proposition GitHub, mais n’est pas exécutée sur cette copie.
+Le site de consultation reste privé : https://diabia-demo.validpika65.chatgpt.site . La copie Sites sert les écrans exportés via un Worker et vérifie l’identité de connexion ChatGPT sur `/api/session`. Les données de santé restent dans des espaces locaux distincts par identité. Il n’y a pas de mot de passe Diabia séparé ni de synchronisation médicale distante. La route IA n’est pas activée sur cette copie.
 
 ## Ce qui reste à décider ou fournir par le porteur du projet
 
@@ -29,7 +37,7 @@ Le site de consultation reste privé : https://diabia-demo.validpika65.chatgpt.s
 | Hébergement | Pour un traitement serveur de données réelles, sélectionner le prestataire et faire vérifier le périmètre HDS applicable et les contrats ; l’offre Sites ne constitue pas une preuve HDS | Déployer le backend et tester la chaîne complète sur cet hébergement |
 | IA | Créer/activer le compte fournisseur en mode gratuit, confirmer les droits d’usage, les paramètres d’entraînement/rétention et les quotas réels ; configurer la clé via les secrets du serveur, jamais en message ni dans le code | Tester le modèle et la clé, raccorder les limites et mesurer qualité/latence. L’IA sur les données personnelles reste bloquée tant que son cadre n’est pas validé |
 | Compteur | Activer un compte Redis REST ou un compteur durable adapté au backend et configurer les secrets | Tester les plafonds sur les instances de production et leurs redémarrages |
-| Identité | Choisir l’accès des futurs utilisateurs : connexion ChatGPT proposée par Sites ou comptes autonomes sur un hébergement adapté | Raccorder l’identité serveur vérifiée aux comptes et aux quotas. Les en-têtes d’identité de navigateur ne doivent jamais être acceptés sans validation |
+| Identité | Choisir l’accès des futurs utilisateurs : connexion ChatGPT déjà intégrée à Sites ou comptes autonomes sur un hébergement adapté | Raccorder l’identité serveur vérifiée aux comptes et aux quotas. Les en-têtes d’identité de navigateur ne doivent jamais être acceptés sans validation |
 | Adresse | Choisir/réserver un domaine si souhaité | Raccorder le DNS et vérifier HTTPS ; un domaine personnalisé n’est pas indispensable à une bêta |
 | Validation terrain | Organiser des essais sur téléphones et navigateurs réels et, pour les fonctions concernées, une évaluation par des professionnels | Corriger les problèmes observés avant ouverture progressive |
 

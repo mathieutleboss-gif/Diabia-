@@ -22,7 +22,7 @@ function cellule(value: string | number | undefined) {
   const protege = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${protege.replace(/"/g, '""')}"`;
 }
-export function exporterMesuresCSV(mesures: Mesure[]): string {
+export function exporterMesuresCSV(mesures: Mesure[], injections: import("./analyses/types").InjectionInsuline[] = []): string {
   const rows = mesures.map(m => {
     const temps = obtenirTimestamp(m);
     const date = temps === null ? m.date || "" : new Date(temps).toLocaleDateString("fr-FR");
@@ -30,5 +30,21 @@ export function exporterMesuresCSV(mesures: Mesure[]): string {
     const dose = lireDoseInsuline(m.insuline);
     return [m.glycemie,date,heure,dose === null ? "" : dose,m.note].map(cellule).join(";");
   });
+  for (const i of injections) rows.push(["",i.date,i.heure,i.dose,i.note].map(cellule).join(";"));
   return "\uFEFFglycémie;date;heure;insuline;note\r\n" + rows.join("\r\n");
+}
+
+export function fusionnerInjections(actuelles: import("./analyses/types").InjectionInsuline[], nouvelles: import("./analyses/types").InjectionInsuline[], mesures: Mesure[] = []) {
+  const cle=(i:{timestamp?:string;date?:string;heure?:string;dose:number;note?:string})=>JSON.stringify([obtenirTimestamp(i),i.dose,i.note?.trim()||""]);
+  const exacte=(i:import("./analyses/types").InjectionInsuline)=>`${cle(i)}:${i.type||"non_precise"}`;
+  const connus=new Set(actuelles.map(exacte));
+  const anciens=new Map<string,number>();
+  for(const m of mesures){const dose=lireDoseInsuline(m.insuline);if(dose===null)continue;const key=cle({...m,dose});anciens.set(key,(anciens.get(key)||0)+1);}
+  const resultat=[...actuelles];let doublons=0;
+  for(const i of nouvelles){const key=cle(i);if(connus.has(exacte(i))){doublons++;continue;}if((anciens.get(key)||0)>0){anciens.set(key,anciens.get(key)!-1);doublons++;continue;}resultat.push(i);connus.add(exacte(i));}
+  return {injections:resultat,ajoutees:resultat.length-actuelles.length,doublons};
+}
+
+export function exporterInjectionsCSV(injections:import("./analyses/types").InjectionInsuline[]) {
+  return "\uFEFFdate;heure;insuline;type_insuline;note;timestamp\r\n"+injections.map(i=>[i.date,i.heure,i.dose,i.type||"non_precise",i.note,i.timestamp].map(cellule).join(";" )).join("\r\n");
 }
