@@ -30,3 +30,30 @@ test('un conflit de révision n’est pas remplacé par une réussite et les tok
 test('les mots de passe trop courts sont refusés avant tout appel',async()=>{
  const original=global.fetch;global.fetch=async()=>{throw new Error('aucun réseau attendu');};try{assert.equal((await cloudRoute(request('/api/auth/signup','POST',{email:'a@example.test',password:'short'}),env)).status,400);}finally{global.fetch=original;}
 });
+
+test('le test fictif reste séparé du stockage médical et exige une connexion',async()=>{
+ const testEnv={...env,DIABIA_REMOTE_HEALTH_APPROVED:'false',DIABIA_SYNC_TEST_ENABLED:'true'};
+ assert.equal((await cloudRoute(request('/api/sync-test'),env)).status,503);
+ assert.equal((await cloudRoute(request('/api/sync-test'),testEnv)).status,401);
+ assert.equal((await cloudRoute(request('/api/sync'),testEnv)).status,503);
+ assert.equal((await cloudRoute(request('/api/sync-test','POST',{revision:0},{origin:'https://evil.example.test'}),testEnv)).status,403);
+});
+test('le test rejette tout payload personnel avant un appel de stockage',async()=>{
+ const original=global.fetch;let calls=0;
+ global.fetch=async(url)=>{calls++;assert.ok(String(url).endsWith('/auth/v1/user'));return Response.json({id:'test-A',email:'a@example.test'});};
+ try{const r=await cloudRoute(request('/api/sync-test','POST',{revision:0,payload:{profil:{nom:'Personne'}}},{cookie:'__Host-diabia-access=token'}),{...env,DIABIA_SYNC_TEST_ENABLED:'true'});assert.equal(r.status,400);assert.equal(calls,1);}finally{global.fetch=original;}
+});
+test('deux sessions du même compte retrouvent le même test fixe, une autre identité reste isolée',async()=>{
+ const original=global.fetch;const rows=new Map();const testEnv={...env,DIABIA_REMOTE_HEALTH_APPROVED:'false',DIABIA_SYNC_TEST_ENABLED:'true'};
+ global.fetch=async(url,options)=>{
+  const token=options.headers.Authorization;const id=token==='Bearer device-B'?'other-user':'same-user';
+  if(String(url).endsWith('/auth/v1/user'))return Response.json({id,email:id+'@example.test'});
+  if(String(url).includes('/rpc/diabia_sync_test_write')){assert.deepEqual(JSON.parse(options.body),{expected_revision:0});rows.set(id,{revision:1,updated_at:'2026-11-14T12:00:00Z'});return Response.json(rows.get(id));}
+  assert.ok(String(url).includes('/diabia_sync_tests?user_id=eq.'+id));return Response.json(rows.has(id)?[rows.get(id)]:[]);
+ };
+ try{const write=await cloudRoute(request('/api/sync-test','POST',{revision:0},{cookie:'__Host-diabia-access=device-A1'}),testEnv);const saved=await write.json();assert.equal(write.status,200);assert.deepEqual(saved.example,{fictif:true,glycemieMgDl:112,insulineUnites:4});const read=await cloudRoute(request('/api/sync-test','GET',undefined,{cookie:'__Host-diabia-access=device-A2'}),testEnv);assert.deepEqual(await read.json(),saved);const other=await cloudRoute(request('/api/sync-test','GET',undefined,{cookie:'__Host-diabia-access=device-B'}),testEnv);assert.deepEqual(await other.json(),{revision:0,example:null});}finally{global.fetch=original;}
+});
+test('deux écritures concurrentes du test renvoient un conflit explicite',async()=>{
+ const original=global.fetch;global.fetch=async url=>String(url).endsWith('/auth/v1/user')?Response.json({id:'A',email:'a@example.test'}):Response.json({conflict:true});
+ try{assert.equal((await cloudRoute(request('/api/sync-test','POST',{revision:1},{cookie:'__Host-diabia-access=token'}),{...env,DIABIA_SYNC_TEST_ENABLED:'true'})).status,409);}finally{global.fetch=original;}
+});

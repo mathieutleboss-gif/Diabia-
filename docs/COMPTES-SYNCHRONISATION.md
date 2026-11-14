@@ -2,7 +2,9 @@
 
 ## État
 
-Implémentation préparée, service distant non provisionné et non activé. Sans configuration, la connexion ChatGPT et les espaces locaux existants restent utilisés. La publication de ce code ne crée pas de comptes, de base ni de synchronisation effective.
+Comptes Diabia configurés sur le projet Supabase Diabia à Paris (offre annoncée à 0 €/mois). Inscription et connexion confirmées par le propriétaire. La base diabia_snapshots est installée ; les tests SQL de droits, de conflit et de suppression ont réussi, sans conserver les données de test. Le stockage médical distant reste désactivé. Les comptes et les données locales existantes sont conservés.
+
+Un test isolé est disponible dans Compte : /api/sync-test ne sauvegarde qu’une révision et une date dans diabia_sync_tests. L’exemple affiché est toujours fixe (112 mg/dL, 4 unités, explicitement fictif) ; aucun CSV ou champ de santé n’est accepté par ce test. DIABIA_SYNC_TEST_ENABLED=true active ce test sans changer DIABIA_REMOTE_HEALTH_APPROVED=false. Schéma déclaratif : supabase/schemas/sync_test.sql, appliqué via l’outil de migration Supabase. Les conflits et droits ont été vérifiés dans la vraie base ; la vérification visuelle sur deux appareils reste à faire.
 
 ## Architecture
 

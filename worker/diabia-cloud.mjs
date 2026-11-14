@@ -22,10 +22,26 @@ function validSnapshot(d){return d&&typeof d==='object'&&!Array.isArray(d)&&[1,2
 export async function cloudRoute(request,env){
  const url=new URL(request.url),p=url.pathname,c=conf(env);
  if(p==='/api/auth/config')return request.method==='GET'?json({available:!!c,syncAvailable:!!c?.sync}):json({error:'Méthode non autorisée'},405);
- if(!p.startsWith('/api/auth/')&&p!=='/api/cloud/session'&&p!=='/api/sync')return null;
+ if(!p.startsWith('/api/auth/')&&p!=='/api/cloud/session'&&p!=='/api/sync'&&p!=='/api/sync-test')return null;
  if(!c)return json({error:'Comptes Diabia en attente de configuration du service de connexion.'},503);
  if(request.method!=='GET'&&request.headers.get('origin')!==url.origin)return json({error:'Origine non autorisée.'},403);
  try{
+  if(p==='/api/sync-test'){
+   if(env.DIABIA_SYNC_TEST_ENABLED!=='true')return json({error:'Le test de synchronisation n’est pas activé.'},503);
+   if(request.method!=='GET'&&request.method!=='POST')return json({error:'Méthode non autorisée'},405);
+   const s=await identity(request,c);if(!s)return json({error:'Connexion Diabia requise.'},401,clear());
+   const example={fictif:true,glycemieMgDl:112,insulineUnites:4};
+   if(request.method==='GET'){
+    const r=await backend(c,`/rest/v1/diabia_sync_tests?user_id=eq.${encodeURIComponent(s.user.id)}&select=revision,updated_at&limit=1`,{token:s.token});
+    if(!r.ok)return json({error:'Lecture du test indisponible.'},503,s.set);
+    const rows=await r.json();return json(rows[0]?{...rows[0],example}:{revision:0,example:null},200,s.set);
+   }
+   const d=await body(request,1000);
+   if(Object.keys(d).length!==1||!Number.isSafeInteger(d.revision)||d.revision<0)return json({error:'Seule la révision du test est acceptée. Aucun fichier ou donnée personnelle ne peut être sauvegardé ici.'},400,s.set);
+   const r=await backend(c,'/rest/v1/rpc/diabia_sync_test_write',{method:'POST',token:s.token,body:{expected_revision:d.revision}});
+   if(!r.ok)return json({error:'Enregistrement du test impossible.'},503,s.set);
+   const data=await r.json();return data.conflict?json({error:'Un autre appareil a enregistré un test. Clique sur Actualiser le test avant de réessayer.'},409,s.set):json({...data,example},200,s.set);
+  }
   if(p==='/api/cloud/session'){
    if(request.method!=='GET')return json({error:'Méthode non autorisée'},405);
    const session=await identity(request,c);return session?json({authenticated:true,user:session.user,provider:'diabia',syncAvailable:c.sync},200,session.set):json({authenticated:false,provider:'diabia'},401,clear());
