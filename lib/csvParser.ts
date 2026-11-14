@@ -21,7 +21,7 @@ const aliases = {
 } as const;
 
 function normaliserCle(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  return value.replace(/^\uFEFF/, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
 function normaliserLigne(ligne: CsvRow): CsvRow {
@@ -37,7 +37,8 @@ function lireChamp(ligne: CsvRow, noms: readonly string[]): unknown {
 }
 
 function lireNombre(value: unknown): number {
-  return Number(String(value ?? "").trim().replace(",", "."));
+  const text = String(value ?? "").trim().replace(",", ".");
+  return /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
 }
 
 export function analyserCSVDetaille(
@@ -78,10 +79,10 @@ export function analyserCSVDetaille(
     }
 
     const insulineBrute = lireChamp(ligne, aliases.insuline);
-    const valeurInsuline = lireNombre(insulineBrute);
+    const valeurInsuline = insulineBrute === undefined ? undefined : lireNombre(insulineBrute);
     const noteBrute = lireChamp(ligne, aliases.note);
-    const insuline = Number.isFinite(valeurInsuline) ? valeurInsuline : 0;
-    const erreurInsuline = validerInsuline(insuline);
+    const insuline = valeurInsuline;
+    const erreurInsuline = insuline === undefined ? null : validerInsuline(insuline);
     if (erreurInsuline) {
       lignesRejetees += 1;
       rejets.push({ ligne: index + 2, raison: erreurInsuline });

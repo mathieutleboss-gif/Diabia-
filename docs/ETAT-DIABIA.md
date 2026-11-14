@@ -1,4 +1,6 @@
-# État de Diabia — 14 novembre 2026
+# Bilan initial de Diabia — 14 novembre 2026
+
+Ce bilan conserve l’état de l’audit initial. Pour l’état actuel, les améliorations livrées et les tâches restantes, consulter [PUBLICATION.md](PUBLICATION.md).
 
 Bilan établi à partir du code du dépôt mathieutleboss-gif/Diabia-, base 6cc8211. « Présent dans le code » ne signifie ni déployé ni validé cliniquement.
 

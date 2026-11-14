@@ -29,6 +29,6 @@ export default function InsulinPanel({ mesures }: { mesures: Mesure[] }) {
         {resume.injections.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4"><div className="flex items-center justify-between"><h3 className="text-xs font-semibold text-slate-500">Dernières injections renseignées</h3><Link href={ROUTES.mesures} className="text-xs font-semibold text-violet-700">Tout voir →</Link></div><ul className="mt-3 flex flex-wrap gap-2">{resume.injections.slice(0,4).map((mesure,index) => <li key={mesure.id || index} className="rounded-xl bg-slate-50 px-3 py-2"><span className="block text-sm font-semibold text-violet-900">{formaterDose(mesure.dose)} U</span><span className="mt-1 block text-[11px] text-slate-500">{mesure.date || "Sans date"} · {mesure.heure || "—"}</span></li>)}</ul></div>}
       </div>
     </div>
-    <p className="border-t border-slate-100 px-6 py-3 text-xs leading-5 text-slate-400 sm:px-8">Affichage des doses saisies ou importées, sans calcul de dose à injecter ni recommandation de traitement.</p>
+    <p className="border-t border-slate-100 px-6 py-3 text-xs leading-5 text-slate-400 sm:px-8">Doses renseignées avec les mesures uniquement. Les descriptions du journal ne sont pas comptabilisées. Aucun calcul de dose à injecter.</p>
   </section>;
 }

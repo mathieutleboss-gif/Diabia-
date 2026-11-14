@@ -12,6 +12,7 @@ const links = [
   ["Journal", ROUTES.journal],
   ["Assistant", ROUTES.assistant],
   ["Profil", ROUTES.profil],
+  ["Aide", ROUTES.aide],
 ];
 
 export default function Header() {

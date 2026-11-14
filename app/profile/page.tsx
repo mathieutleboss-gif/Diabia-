@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ProfilDiabia } from "../../lib/analyses/types";
+import { sauvegardeValide } from "../../lib/sauvegarde";
 import { LIMITES_SAISIE } from "../../lib/saisie";
 import { exporterDonneesLocales, lireValeurLocale, restaurerDonneesLocales, sauvegarderLocal, supprimerDonneesLocales } from "../../lib/storage";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
@@ -70,12 +71,13 @@ function DataControls() {
   const [erreur, setErreur] = useState("");
   const [succes, setSucces] = useState("");
   const [confirmation, setConfirmation] = useState(false);
+  const [aRestaurer, setARestaurer] = useState<unknown>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   function exporter() {
     const blob = new Blob([JSON.stringify(exporterDonneesLocales(), null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const lien = document.createElement("a"); lien.href = url; lien.download = `diabia-export-${new Date().toISOString().slice(0, 10)}.json`; lien.click(); URL.revokeObjectURL(url);
+    const lien = document.createElement("a"); lien.href = url; lien.download = `diabia-export-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(lien); lien.click(); lien.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     setErreur(""); setSucces("Export téléchargé. Conserve ce fichier dans un emplacement sûr : il contient tes données Diabia.");
   }
 
@@ -84,12 +86,18 @@ function DataControls() {
     event.target.value = "";
     if (!fichier) return;
     try {
+      if (fichier.size > 10 * 1024 * 1024) { setErreur("Le fichier dépasse la limite de 10 Mo. Aucune donnée n’a été modifiée."); return; }
       const contenu = JSON.parse(await fichier.text()) as unknown;
-      if (!restaurerDonneesLocales(contenu)) throw new Error("format");
-      setErreur(""); setSucces("Sauvegarde restaurée. Les mesures, le journal et le profil ont été remplacés.");
+      if (!sauvegardeValide(contenu)) throw new Error("format");
+      setErreur(""); setSucces(""); setARestaurer(contenu);
     } catch {
       setSucces(""); setErreur("Ce fichier n’est pas un export Diabia valide. Aucune donnée n’a été modifiée.");
     }
+  }
+
+  function confirmerRestauration() {
+    if (!restaurerDonneesLocales(aRestaurer)) { setARestaurer(null); setErreur("La sauvegarde n’a pas pu être restaurée. Vérifie l’espace disponible et les autorisations de stockage."); return; }
+    setARestaurer(null); setErreur(""); setSucces("Sauvegarde restaurée dans ce navigateur.");
   }
 
   function supprimer() {
@@ -105,6 +113,7 @@ function DataControls() {
       <input ref={importRef} type="file" accept="application/json,.json" onChange={restaurer} className="sr-only" aria-label="Choisir un export JSON Diabia à restaurer" />
     </div>
     <details className="mt-5 rounded-2xl border border-rose-100 bg-rose-50/40 p-4"><summary className="cursor-pointer text-sm font-medium text-rose-800">Effacer les données de ce navigateur</summary><p className="mt-3 text-xs leading-5 text-slate-500">Cette action supprime les mesures, les doses d’insuline, le journal et le profil. Pense à télécharger une sauvegarde.</p><button type="button" onClick={() => setConfirmation(true)} className="mt-4 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">Supprimer mes données</button></details>
+    {aRestaurer !== null && <ConfirmDialog title="Restaurer cette sauvegarde ?" description="Les mesures, les doses, le journal et le profil actuels seront remplacés par ceux du fichier. Exporte tes données actuelles avant de continuer si tu veux les conserver." confirmLabel="Restaurer la sauvegarde" onConfirm={confirmerRestauration} onCancel={() => setARestaurer(null)} />}
     {confirmation && <ConfirmDialog title="Supprimer définitivement toutes les données ?" description="Les mesures, le journal et le profil de ce navigateur seront supprimés. Exporte une sauvegarde avant de continuer si tu souhaites pouvoir les restaurer." confirmLabel="Confirmer la suppression" onConfirm={supprimer} onCancel={() => setConfirmation(false)} />}
     {erreur && <p role="alert" className="mt-4 text-sm font-medium text-red-700">{erreur}</p>}
     {succes && <p role="status" className="mt-4 text-sm font-medium text-emerald-700">{succes}</p>}

@@ -40,7 +40,7 @@ La création de comptes ne suffit pas à garantir une équité parfaite (comptes
 
 ## Bilan et cadre réglementaire
 
-Voir [docs/ETAT-DIABIA.md](docs/ETAT-DIABIA.md) pour les fonctionnalités présentes, le reste à faire et les sources vérifiées le 14 novembre 2026. L'offre gratuite Mistral n'est **pas validée pour le traitement médical de Diabia**. Une offre européenne ou une désactivation de l'entraînement ne constitue pas une certification HDS ni une conformité RGPD globale.
+Voir [docs/PUBLICATION.md](docs/PUBLICATION.md) et [la recette manuelle](docs/TESTS-MANUELS.md) pour les fonctionnalités présentes, le reste à faire et les sources vérifiées le 14 novembre 2026. L'offre gratuite Mistral n'est **pas validée pour le traitement médical de Diabia**. Une offre européenne ou une désactivation de l'entraînement ne constitue pas une certification HDS ni une conformité RGPD globale.
 
 ## Vérifications
 

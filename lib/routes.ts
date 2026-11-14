@@ -1,4 +1,6 @@
 export const ROUTES = {
+  aide: "/help",
+  confidentialite: "/privacy",
   accueil: "/",
   dashboard: "/dashboard",
   import: "/import",
