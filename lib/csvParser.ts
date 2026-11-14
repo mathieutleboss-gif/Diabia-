@@ -32,6 +32,7 @@ export function analyserCSVDetaille(lignes:CsvRow[],unite:GlucoseUnit="mg/dL",op
   const colonnesDetectees=Array.from(new Set(lignes.flatMap(Object.keys)));
   const mapping=options.mapping??detecterColonnes(colonnesDetectees);
   const mesures:Mesure[]=[],injections:InjectionInsuline[]=[],rejets:CsvParseResult["rejets"]=[];
+  for(const col of [mapping.glycemie,mapping.glycemieSecondaire]){const indiquee=col?detecterUniteColonne(col):null;if(indiquee&&indiquee!==unite)return {mesures,injections,lignesRejetees:lignes.length,colonnesDetectees,rejets:[{ligne:1,raison:`La colonne ${col} indique ${indiquee}, mais l’unité choisie est ${unite}. Corriger l’unité ou la colonne.`}]};}
   const choisies=Object.values(mapping).filter(Boolean);
   if(new Set(choisies).size!==choisies.length)return {mesures,injections,lignesRejetees:lignes.length,colonnesDetectees,rejets:[{ligne:1,raison:"Une colonne est choisie plusieurs fois. Vérifier les correspondances."}]};
   const lire=(row:CsvRow,key:keyof CsvMapping)=>{const col=mapping[key];if(!col)return undefined;const v=row[col];return v===undefined||v===null||String(v).trim()===""?undefined:v;};

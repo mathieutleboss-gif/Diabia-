@@ -38,3 +38,5 @@ test("les espaces de deux comptes sont distincts et l'ancien historique n'est ja
 });
 
 test("une même colonne ne peut pas être additionnée deux fois",()=>{const r=analyserCSVDetaille([{date:"04/08/2026",dose:"3"}],"mg/dL",{mapping:{date:"date",insuline:"dose",insulineBasale:"dose"},separerInjections:true});assert.equal(r.injections.length,0);assert.equal(r.lignesRejetees,1);});
+
+test("une unité explicite de colonne incompatible avec le choix d'import est bloquée",()=>{const rows=[{date:"04/08/2026","Glucose (mmol/L)":"6,7"}];assert.equal(analyserCSVDetaille(rows,"mg/dL",{separerInjections:true}).mesures.length,0);assert.equal(analyserCSVDetaille(rows,"mmol/L",{separerInjections:true}).mesures[0].glycemie,120.7);});
