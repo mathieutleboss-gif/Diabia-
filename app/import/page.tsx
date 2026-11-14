@@ -35,6 +35,7 @@ export default function ImportPage() {
     if(!valide||!configuration||ambigue||!total)return;
     try{
       const anciennes=exporterDonneesLocales();
+      if(mode === "fusion" && anciennes.mesures.some(m => m.id?.startsWith("demo-"))) throw new Error("Ton historique contient l’exemple fictif intégré. Pour éviter de le mélanger à ton export, choisis Remplacer glycémies et injections ou utilise un espace vide. Une confirmation sera demandée.");
       const base=mode==="fusion"?anciennes.mesures:[],baseInj=mode==="fusion"?anciennes.injections:[];
       // Les anciennes doses liées à une glycémie ne doivent pas être recomptées au réimport.
       const inj=fusionnerInjections(baseInj,analyse.injections,base);
