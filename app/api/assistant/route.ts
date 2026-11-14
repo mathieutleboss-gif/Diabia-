@@ -9,7 +9,7 @@ function json(body: object, status = 200, extra = {}) {
 export async function GET() {
   let configured = false;
   try { cloudConfig(); configured = true; } catch { /* Aucun appel réseau de vérification. */ }
-  return json({ disponible: configured, mode: "demo", fournisseur: "Mistral", limites: { parJour: 10, parMinute: 2 }, message: "Démonstration sur données fictives uniquement. Connexion par compte requise." });
+  return json({ disponible: configured, mode: "demo", fournisseur: "Groq", limites: { parJour: 10, parMinute: 2 }, message: "Démonstration sur données fictives uniquement. Connexion par compte requise." });
 }
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const quota = await reserveQuota(user, config);
     if (!quota.allowed) return json({ error: "Limite de demandes atteinte. Réessaie plus tard." }, 429, { "Retry-After": String(quota.retryAfter) });
     // Pas de question libre, rapport, journal ou profil utilisateur dans cet appel.
-    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST", headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: config.model, temperature: 0.1, max_tokens: 600, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: DEMO_QUESTIONS[body.questionId as keyof typeof DEMO_QUESTIONS] }] }),
       signal: AbortSignal.timeout(30_000), cache: "no-store",

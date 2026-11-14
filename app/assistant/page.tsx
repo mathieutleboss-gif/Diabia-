@@ -6,16 +6,12 @@ import { ROUTES } from "../../lib/routes";
 
 export default function Assistant() {
   const [questionId, setQuestionId] = useState("moyenne");
-  const [disponible, setDisponible] = useState(false);
-  const [verification, setVerification] = useState(true);
+  const [disponible,setDisponible] = useState(false);
+  const [verification,setVerification] = useState(true);
+  useEffect(()=>{const c=new AbortController();fetch('/api/assistant',{cache:'no-store',credentials:'same-origin',signal:c.signal}).then(async r=>{if(r.ok){const d=await r.json();if(!c.signal.aborted)setDisponible(d.disponible===true);}}).catch(()=>{}).finally(()=>{if(!c.signal.aborted)setVerification(false);});return()=>c.abort();},[]);
   const [chargement, setChargement] = useState(false);
   const [reponse, setReponse] = useState("");
   const [erreur, setErreur] = useState("");
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(ROUTES.apiAssistant, { signal: controller.signal }).then(r => r.json()).then(data => setDisponible(data.disponible === true)).catch(() => setDisponible(false)).finally(() => setVerification(false));
-    return () => controller.abort();
-  }, []);
   async function envoyer(event: React.FormEvent) {
     event.preventDefault(); setChargement(true); setErreur(""); setReponse("");
     try {
@@ -27,10 +23,10 @@ export default function Assistant() {
     finally { setChargement(false); }
   }
   return <PageShell width="max-w-3xl">
-    <PageHero eyebrow="Mistral · Démonstration" title="Assistant Diabia" description="Teste une IA distante sur des exemples de statistiques entièrement fictifs." />
+    <PageHero eyebrow="Groq · Démonstration" title="Assistant Diabia" description="Teste une IA distante sur des exemples de statistiques entièrement fictifs." />
     <GlassPanel>
-      <p role="status" className="mb-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">{verification ? "Vérification de la configuration…" : disponible ? "Démonstration configurée. Une connexion par compte est nécessaire." : "Démonstration en attente de configuration et de connexion par compte."}</p>
-      <p className="mb-5 text-sm leading-6 text-slate-600">Tes mesures, ton profil et ton journal restent dans ce navigateur et ne sont pas envoyés à Mistral. L’analyse de données de santé réelles attend la validation du cadre juridique et de l’hébergement.</p>
+      <p role="status" className="mb-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">{verification ? "Vérification de la configuration…" : disponible ? "Démonstration configurée. Une connexion par compte est nécessaire." : "Démonstration désactivée : le compte API gratuit et ses quotas restent à configurer."}</p>
+      <p className="mb-5 text-sm leading-6 text-slate-600">Tes mesures, ton profil et ton journal restent dans ce navigateur et ne sont pas envoyés à Groq. L’analyse de données de santé réelles attend la validation du cadre juridique et de l’hébergement.</p>
       <form onSubmit={envoyer}>
         <label htmlFor="question" className="font-semibold">Exemple à explorer</label>
         <select id="question" value={questionId} onChange={e => setQuestionId(e.target.value)} className={`${fieldClassName} mt-2`}>

@@ -42,11 +42,11 @@ import { authenticatedUser, cloudConfig, DEMO_QUESTIONS, RESERVED_TOKENS, SYSTEM
 
 function configure() {
   Object.assign(process.env, {
-    MISTRAL_API_KEY: "fake-key", MISTRAL_MODEL: "test-model",
+    GROQ_API_KEY: "fake-key", GROQ_MODEL: "test-model",
     UPSTASH_REDIS_REST_URL: "https://redis.invalid", UPSTASH_REDIS_REST_TOKEN: "fake-token",
     ASSISTANT_AUTH_SECRET: "a".repeat(32), ASSISTANT_FREE_PLAN_CONFIRMED: "true",
-    MISTRAL_QUOTA_RPM: "100", MISTRAL_QUOTA_RPD: "1000",
-    MISTRAL_QUOTA_TPM: "51200", MISTRAL_QUOTA_TPD: "512000",
+    GROQ_QUOTA_RPM: "100", GROQ_QUOTA_RPD: "1000",
+    GROQ_QUOTA_TPM: "51200", GROQ_QUOTA_TPD: "512000",
   });
 }
 function signedRequest(body: unknown) {
@@ -74,7 +74,7 @@ test("les données personnelles et les questions libres sont bloquées sans appe
 test("la configuration manquante ou l'identité non signée bloque le fournisseur", async () => {
   configure();
   assert.equal((await POST(new Request("http://localhost/api/assistant", { method: "POST", headers: { "x-diabia-user": "fake" }, body: JSON.stringify({ questionId: "moyenne" }) }))).status, 401);
-  delete process.env.MISTRAL_QUOTA_RPM;
+  delete process.env.GROQ_QUOTA_RPM;
   assert.equal((await POST(signedRequest({ questionId: "moyenne" }))).status, 503);
   const status = await (await GET()).json();
   assert.equal(status.disponible, false);
@@ -121,7 +121,7 @@ test("un quota épuisé ou Redis indisponible empêche l'appel IA", async () => 
   } finally { global.fetch = original; }
 });
 
-test("la réservation précède Mistral et seul le texte fictif est envoyé, sans retry", async () => {
+test("la réservation précède Groq et seul le texte fictif est envoyé, sans retry", async () => {
   configure();
   const original = global.fetch; const calls: string[] = [];
   global.fetch = async (url, init) => {
@@ -132,7 +132,7 @@ test("la réservation précède Mistral et seul le texte fictif est envoyé, san
       assert.deepEqual(body.slice(-5,-1), [10, 100, 2, 10]);
       return Response.json({ result: [1, 0] });
     }
-    assert.equal(url, "https://api.mistral.ai/v1/chat/completions");
+    assert.equal(url, "https://api.groq.com/openai/v1/chat/completions");
     assert.equal(body.max_tokens, 600);
     assert.equal(body.messages[1].content, DEMO_QUESTIONS.moyenne);
     return Response.json({ error: "provider limit" }, { status: 429 });
@@ -143,7 +143,7 @@ test("la réservation précède Mistral et seul le texte fictif est envoyé, san
   } finally { global.fetch = original; }
 });
 
-test("la réponse Mistral est retournée sans exposer les secrets", async () => {
+test("la réponse Groq est retournée sans exposer les secrets", async () => {
   configure();
   const original = global.fetch;
   global.fetch = async url => String(url).includes("redis.invalid") ? Response.json({ result: [1,0] }) : Response.json({ choices: [{ message: { content: "La moyenne est 100." } }] });
@@ -156,6 +156,6 @@ test("la réponse Mistral est retournée sans exposer les secrets", async () => 
 
 test("un quota d'une requête par minute reste utilisable sans dépasser un appel", () => {
   configure();
-  process.env.MISTRAL_QUOTA_RPM = "1";
+  process.env.GROQ_QUOTA_RPM = "1";
   assert.equal(cloudConfig().rpm, 1);
 });

@@ -14,16 +14,16 @@ function positive(name: string): number {
   return value;
 }
 export function cloudConfig() {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
   const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
   const authSecret = process.env.ASSISTANT_AUTH_SECRET;
   if (!apiKey || !redisUrl?.startsWith("https://") || !redisToken || !authSecret || authSecret.length < 32 || process.env.ASSISTANT_FREE_PLAN_CONFIRMED !== "true") throw new Error("Assistant non configuré");
   // Quotas réels du compte : marge de 20 %, sauf quota de requêtes égal à 1.
-  const rpm = Math.min(Math.max(1, Math.floor(positive("MISTRAL_QUOTA_RPM") * .8)), Math.floor(positive("MISTRAL_QUOTA_TPM") * .8 / RESERVED_TOKENS));
-  const rpd = Math.min(Math.max(1, Math.floor(positive("MISTRAL_QUOTA_RPD") * .8)), Math.floor(positive("MISTRAL_QUOTA_TPD") * .8 / RESERVED_TOKENS));
+  const rpm = Math.min(Math.max(1, Math.floor(positive("GROQ_QUOTA_RPM") * .8)), Math.floor(positive("GROQ_QUOTA_TPM") * .8 / RESERVED_TOKENS));
+  const rpd = Math.min(Math.max(1, Math.floor(positive("GROQ_QUOTA_RPD") * .8)), Math.floor(positive("GROQ_QUOTA_TPD") * .8 / RESERVED_TOKENS));
   if (rpm < 1 || rpd < 1) throw new Error("Quota insuffisant");
-  return { apiKey, redisUrl, redisToken, authSecret, rpm, rpd, model: process.env.MISTRAL_MODEL || "mistral-small-latest" };
+  return { apiKey, redisUrl, redisToken, authSecret, rpm, rpd, model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile" };
 }
 
 // L'identité doit venir d'une passerelle authentifiée, jamais du navigateur.

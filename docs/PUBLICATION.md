@@ -1,5 +1,7 @@
 # Diabia — état et passage à une bêta
 
+**État courant : voir [AVANT-PUBLICATION.md](AVANT-PUBLICATION.md), [COMPTES-SYNCHRONISATION.md](COMPTES-SYNCHRONISATION.md) et [CADRE-DONNEES-ET-IA.md](CADRE-DONNEES-ET-IA.md).** Les comptes Diabia sont maintenant activés, le propriétaire a validé les deux premiers parcours, et la piste API Mistral gratuite est remplacée par une préparation Groq fictive. Les sections ci-dessous conservent l’historique et les limites des fonctions existantes.
+
 Mis à jour le 14 novembre 2026. Ce document décrit l’état technique ; il ne certifie ni conformité juridique ni efficacité clinique.
 
 ## Derniers ajouts : compte et import d’insuline
