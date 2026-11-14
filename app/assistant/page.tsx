@@ -1,84 +1,48 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { analyserGlycemie } from "../../lib/analyse";
-import { creerRapportIA } from "../../lib/analyses/rapportIA";
+import { useEffect, useState } from "react";
 import { GlassPanel, PageHero, PageShell, fieldClassName, primaryButtonClassName } from "../components/PageShell";
-import { lireJournalLocal, lireMesuresLocales, lireProfilLocal, lireValeurLocale } from "../../lib/storage";
-import { STORAGE_KEYS } from "../../lib/storageKeys";
-import { normaliserMesures } from "../../lib/validation";
 import { ROUTES } from "../../lib/routes";
 
-type EtatOllama = { statut: "verification" | "pret" | "indisponible" | "modele-manquant"; modele: string };
-
-function RapportStructure({ contenu }: { contenu: string }) {
-  const sections = contenu.split(/(?=^##\s)/m).map((section) => section.trim()).filter(Boolean);
-  return <div className="mt-3 space-y-5">{sections.map((section, index) => {
-    const lignes = section.split("\n").map((ligne) => ligne.trim()).filter(Boolean);
-    const titre = lignes[0]?.startsWith("## ") ? lignes.shift()?.replace(/^##\s*/, "") : index === 0 ? "Réponse" : undefined;
-    const items = lignes.filter((ligne) => ligne.startsWith("- "));
-    const paragraphes = lignes.filter((ligne) => !ligne.startsWith("- "));
-    return <section key={`${titre || "section"}-${index}`} className="rounded-2xl bg-white/70 p-4">{titre && <h3 className="font-semibold text-slate-900">{titre}</h3>}{paragraphes.map((ligne, ligneIndex) => <p key={`${ligne}-${ligneIndex}`} className="mt-2 text-sm leading-7 text-slate-700">{ligne}</p>)}{items.length > 0 && <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">{items.map((ligne, ligneIndex) => <li key={`${ligne}-${ligneIndex}`}>{ligne.slice(2)}</li>)}</ul>}</section>;
-  })}</div>;
-}
-
 export default function Assistant() {
-  const snapshot = useSyncExternalStore(
-    (callback) => { window.addEventListener("storage", callback); window.addEventListener("diabia:storage", callback); return () => { window.removeEventListener("storage", callback); window.removeEventListener("diabia:storage", callback); }; },
-    () => lireValeurLocale(STORAGE_KEYS.mesures, "[]"),
-    () => "[]"
-  );
-  const hasData = useMemo(() => { try { return normaliserMesures(JSON.parse(snapshot)).length > 0; } catch { return false; } }, [snapshot]);
-  const [question, setQuestion] = useState("");
+  const [questionId, setQuestionId] = useState("moyenne");
+  const [disponible, setDisponible] = useState(false);
+  const [verification, setVerification] = useState(true);
+  const [chargement, setChargement] = useState(false);
   const [reponse, setReponse] = useState("");
   const [erreur, setErreur] = useState("");
-  const [chargement, setChargement] = useState(false);
-  const [controleur, setControleur] = useState<AbortController | null>(null);
-  const [ollama, setOllama] = useState<EtatOllama>({ statut: "verification", modele: "" });
-
   useEffect(() => {
     const controller = new AbortController();
-    fetch(ROUTES.apiAssistant, { signal: controller.signal })
-      .then((response) => response.json())
-      .then((data: { disponible?: boolean; modelDisponible?: boolean; modele?: string }) => setOllama({ statut: !data.disponible ? "indisponible" : data.modelDisponible ? "pret" : "modele-manquant", modele: data.modele || "llama3.2:3b" }))
-      .catch((error: unknown) => { if (error instanceof Error && error.name !== "AbortError") setOllama({ statut: "indisponible", modele: "llama3.2:3b" }); });
+    fetch(ROUTES.apiAssistant, { signal: controller.signal }).then(r => r.json()).then(data => setDisponible(data.disponible === true)).catch(() => setDisponible(false)).finally(() => setVerification(false));
     return () => controller.abort();
   }, []);
-
-  async function envoyer(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!question.trim() || !hasData || ollama.statut !== "pret") return;
-    setChargement(true); setErreur("");
-    const controller = new AbortController();
-    setControleur(controller);
+  async function envoyer(event: React.FormEvent) {
+    event.preventDefault(); setChargement(true); setErreur(""); setReponse("");
     try {
-      const mesures = lireMesuresLocales();
-      const profil = lireProfilLocal();
-      const journal = lireJournalLocal();
-      const rapport = creerRapportIA(analyserGlycemie(mesures, journal), profil, journal, mesures);
-      const resultat = await fetch(ROUTES.apiAssistant, { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ question, rapport }) });
-      const data = (await resultat.json()) as { reponse?: string; error?: string };
-      if (!resultat.ok || !data.reponse) throw new Error(data.error || "Réponse indisponible.");
+      const response = await fetch(ROUTES.apiAssistant, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Réponse indisponible.");
       setReponse(data.reponse);
-    } catch (error) { setErreur(error instanceof Error && error.name === "AbortError" ? "Analyse annulée." : error instanceof Error ? error.message : "Impossible de contacter Diabia."); }
-    finally { setChargement(false); setControleur(null); }
+    } catch (error) { setErreur(error instanceof Error ? error.message : "Assistant indisponible."); }
+    finally { setChargement(false); }
   }
-
-  const etatTexte = ollama.statut === "verification" ? "Vérification d’Ollama…" : ollama.statut === "pret" ? `Ollama connecté · modèle ${ollama.modele} détecté` : ollama.statut === "modele-manquant" ? `Modèle ${ollama.modele} non installé` : "Ollama n’est pas joignable";
-
-  return (
-    <PageShell width="max-w-5xl">
-      <PageHero eyebrow="IA locale · Ollama" title="Assistant Diabia" description="Pose une question sur tes résultats. L’assistant s’appuie uniquement sur les données présentes dans ce navigateur." />
-      <div className="grid gap-5 lg:grid-cols-[1fr_0.55fr]">
-        <GlassPanel>
-          <div role="status" className={`mb-5 rounded-2xl px-4 py-3 text-sm font-medium ${ollama.statut === "pret" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{etatTexte}</div>
-          {!hasData ? <div className="rounded-3xl bg-blue-50 p-6"><h2 className="font-semibold text-slate-950">Ajoute d’abord des mesures</h2><p className="mt-2 text-sm text-slate-600">L’assistant a besoin de données réelles pour répondre sans inventer.</p><div className="mt-4 flex gap-3"><Link href={ROUTES.ajoutMesure} className={primaryButtonClassName}>Ajouter une mesure</Link><Link href={ROUTES.import} className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-blue-700">Importer</Link></div></div> : <form onSubmit={envoyer}><label htmlFor="question-assistant" className="text-sm font-semibold text-slate-800">Question pour Diabia</label><textarea id="question-assistant" maxLength={1000} className={`${fieldClassName} mt-2 min-h-40 resize-y text-base`} placeholder="Pourquoi mon score est-il bas ?" value={question} onChange={(e) => setQuestion(e.target.value)} /><p className="mt-2 text-right text-xs text-slate-400">{question.length} / 1 000</p><div className="mt-4 flex flex-wrap gap-3"><button type="submit" disabled={chargement || !question.trim() || ollama.statut !== "pret"} className={primaryButtonClassName}>{chargement ? "Analyse en cours…" : "Demander à Diabia"}</button>{chargement && <button type="button" onClick={() => controleur?.abort()} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">Annuler</button>}</div>{chargement && <p role="status" className="mt-3 text-xs text-slate-500">Le premier chargement du modèle local peut prendre jusqu’à 90 secondes.</p>}</form>}
-          {erreur && <div role="alert" className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">{erreur}</div>}
-          {reponse && <div aria-live="polite" className="mt-6 rounded-3xl bg-blue-50/80 p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Rapport d’analyse</p><RapportStructure contenu={reponse} /><p className="mt-4 text-xs leading-5 text-slate-500">Rapport informatif fondé uniquement sur les données disponibles. Il ne remplace pas une consultation et ne doit pas servir à modifier un traitement.</p></div>}
-        </GlassPanel>
-        <aside className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-xl"><span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-white/10 text-2xl">✦</span><h2 className="mt-6 text-xl font-semibold">Activer l’assistant sur cet ordinateur</h2><p className="mt-3 text-sm leading-6 text-slate-300">L’assistant nécessite l’application Ollama. Une fois Ollama installé, lance ces deux commandes dans le Terminal :</p><div className="mt-4 space-y-2"><code className="block overflow-x-auto rounded-xl bg-white/10 px-3 py-2 text-xs">ollama serve</code><code className="block overflow-x-auto rounded-xl bg-white/10 px-3 py-2 text-xs">ollama pull {ollama.modele || "llama3.2:3b"}</code></div><details className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400"><summary className="cursor-pointer font-semibold text-slate-200">Configuration d’un serveur distant</summary><p className="mt-2">En déploiement distant, « localhost » désigne le serveur hébergeant Diabia. La variable OLLAMA_URL doit être configurée sur ce serveur.</p></details></aside>
-      </div>
-    </PageShell>
-  );
+  return <PageShell width="max-w-3xl">
+    <PageHero eyebrow="Mistral · Démonstration" title="Assistant Diabia" description="Teste une IA distante sur des exemples de statistiques entièrement fictifs." />
+    <GlassPanel>
+      <p role="status" className="mb-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">{verification ? "Vérification de la configuration…" : disponible ? "Démonstration configurée. Une connexion par compte est nécessaire." : "Démonstration en attente de configuration et de connexion par compte."}</p>
+      <p className="mb-5 text-sm leading-6 text-slate-600">Tes mesures, ton profil et ton journal restent dans ce navigateur et ne sont pas envoyés à Mistral. L’analyse de données de santé réelles attend la validation du cadre juridique et de l’hébergement.</p>
+      <form onSubmit={envoyer}>
+        <label htmlFor="question" className="font-semibold">Exemple à explorer</label>
+        <select id="question" value={questionId} onChange={e => setQuestionId(e.target.value)} className={`${fieldClassName} mt-2`}>
+          <option value="moyenne">Calculer une moyenne sur trois nombres fictifs</option>
+          <option value="dispersion">Comprendre leur dispersion</option>
+          <option value="limites">Comprendre les limites d’un petit échantillon</option>
+        </select>
+        <p className="my-4 text-sm text-slate-500">Maximum : 10 demandes sur 24 heures et 2 par minute par compte. Un plafond global peut suspendre les demandes plus tôt.</p>
+        <button disabled={!disponible || chargement} className={primaryButtonClassName}>{chargement ? "Réponse en cours…" : "Tester l’exemple"}</button>
+      </form>
+      {erreur && <p role="alert" className="mt-5 text-rose-800">{erreur}</p>}
+      {reponse && <div aria-live="polite" className="mt-5 whitespace-pre-wrap rounded-2xl bg-blue-50 p-5 text-sm leading-7">{reponse}</div>}
+    </GlassPanel>
+  </PageShell>;
 }

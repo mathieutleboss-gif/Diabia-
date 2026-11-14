@@ -92,5 +92,5 @@ function DataControls() {
 export default function Profile() {
   const snapshot = useSyncExternalStore(subscribeToProfile, () => lireValeurLocale(STORAGE_KEYS.profil, EMPTY_PROFILE), () => EMPTY_PROFILE);
   const profile = useMemo(() => parseProfile(snapshot), [snapshot]);
-  return <PageShell width="max-w-4xl"><PageHero eyebrow="Personnalisation" title="Mon profil" description="Ces informations donnent du contexte à l’assistant. Les analyses automatiques restent fondées sur les mesures et doivent être interprétées avec des objectifs individualisés." /><ProfileForm key={snapshot} initialProfile={profile} /><DataControls /></PageShell>;
+  return <PageShell width="max-w-4xl"><PageHero eyebrow="Personnalisation" title="Mon profil" description="Ces informations sont enregistrées uniquement dans ce navigateur. Les analyses automatiques restent fondées sur les mesures et doivent être interprétées avec des objectifs individualisés." /><ProfileForm key={snapshot} initialProfile={profile} /><DataControls /></PageShell>;
 }
