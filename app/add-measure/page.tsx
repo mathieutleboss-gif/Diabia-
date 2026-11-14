@@ -33,13 +33,13 @@ export default function AddMeasure() {
     event.preventDefault();
     const valeurSaisie = Number(glycemie.replace(",", "."));
     const valeurGlycemie = convertirEnMgDl(valeurSaisie, unite);
-    const valeurInsuline = insuline ? Number(insuline) : 0;
+    const valeurInsuline = insuline.trim() ? Number(insuline.replace(",", ".")) : undefined;
     const erreurGlycemie = validerGlycemieMgDl(valeurGlycemie);
     if (erreurGlycemie) {
       setErreur(erreurGlycemie);
       return;
     }
-    const erreurInsuline = validerInsuline(valeurInsuline);
+    const erreurInsuline = valeurInsuline === undefined ? null : validerInsuline(valeurInsuline);
     if (erreurInsuline) {
       setErreur(erreurInsuline);
       return;
@@ -55,7 +55,7 @@ export default function AddMeasure() {
     const nouvelleMesure = {
       id: crypto.randomUUID(),
       glycemie: valeurGlycemie,
-      insuline,
+      insuline: valeurInsuline,
       note,
       date: horodatage.toLocaleDateString("fr-FR"),
       heure,
@@ -95,7 +95,7 @@ export default function AddMeasure() {
               <input type="time" required className={fieldClassName} value={heure} onChange={(event) => setHeure(event.target.value)} />
             </FormField>
           </div>
-          <FormField label="Insuline rapide" hint="facultatif · unités">
+          <FormField label="Dose d’insuline injectée" hint="facultatif · unités (U)">
             <input type="number" min="0" max={LIMITES_SAISIE.insulineMax} step="any" inputMode="decimal" className={fieldClassName} value={insuline} onChange={(e) => setInsuline(e.target.value)} placeholder="4" />
           </FormField>
           <FormField label="Note" hint="facultatif">

@@ -9,6 +9,7 @@ import type {
   ProfilDiabia,
 } from "../../lib/analyses/types";
 import DashboardHeader from "./components/DashboardHeader";
+import InsulinPanel from "./components/InsulinPanel";
 import GlucoseChart from "./components/GlucoseChart";
 import InsightsPanel from "./components/InsightsPanel";
 import JournalProfile from "./components/JournalProfile";
@@ -131,6 +132,8 @@ export default function Dashboard() {
               <ScoreCard score={analyse.score} moyenne={analyse.moyenne} minimum={analyse.minimum} maximum={analyse.maximum} hasData={hasData} nombreMesures={analyse.nombreMesures} confiance={analyse.avance.qualite.niveau} />
               <GlucoseChart mesures={mesuresAnalysees} />
             </section>
+
+            <InsulinPanel mesures={mesuresAnalysees} />
 
             <MetricCards cible={analyse.cible} hyper={analyse.hyper} hypo={analyse.hypo} variations={analyse.variations.nombre} hasData={hasData} />
 
