@@ -8,6 +8,7 @@ if(!assets['/index.html']||!assets['/account/index.html'])throw new Error('Expor
 const manifest=JSON.parse(await readFile('.openai/hosting.json','utf8'));
 if(manifest.static)throw new Error('La publication avec session doit utiliser le Worker, sans static.directory');
 await mkdir('dist/server',{recursive:true});
-const handler=await readFile('worker/handler.mjs','utf8');
-await writeFile('dist/server/index.js',`${handler}\nconst embeddedAssets=${JSON.stringify(assets)};\nexport default createHandler(embeddedAssets);\n`);
+const cloud=await readFile('worker/diabia-cloud.mjs','utf8');
+const handler=(await readFile('worker/handler.mjs','utf8')).replace("import {cloudRoute} from './diabia-cloud.mjs';\n",'');
+await writeFile('dist/server/index.js',`${cloud}\n${handler}\nconst embeddedAssets=${JSON.stringify(assets)};\nexport default createHandler(embeddedAssets);\n`);
 console.log(`Worker généré : ${Object.keys(assets).length} ressources, identité fournie par Sites.`);

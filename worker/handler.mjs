@@ -1,3 +1,4 @@
+import {cloudRoute} from './diabia-cloud.mjs';
 const JSON_HEADERS = {"Content-Type":"application/json;charset=utf-8","Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 /** Ce module est réservé à l'entrée Sites : l'identité est injectée par son proxy authentifié. */
 export function sessionUtilisateur(request) {
@@ -8,7 +9,8 @@ export function sessionUtilisateur(request) {
   return {id,email,name:name.slice(0,200)||email};
 }
 export function createHandler(assets) {
- return {async fetch(request) {
+ return {async fetch(request,env={}) {
+  const external=await cloudRoute(request,env);if(external)return external;
   const url=new URL(request.url);
   if(url.pathname==="/api/session"){
    if(request.method!=="GET")return new Response(JSON.stringify({error:"Méthode non autorisée"}),{status:405,headers:{...JSON_HEADERS,Allow:"GET"}});

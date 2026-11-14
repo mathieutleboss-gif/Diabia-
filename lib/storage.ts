@@ -122,7 +122,8 @@ export function supprimerDonneesLocales(): boolean {
     stockage().removeItem(STORAGE_KEYS.journal);
     stockage().removeItem(STORAGE_KEYS.profil);
     stockage().removeItem(STORAGE_KEYS.version);
-    window.dispatchEvent(new Event("diabia:storage"));
+    stockage().removeItem("diabia_sync_meta");
+    window.dispatchEvent(new CustomEvent("diabia:storage", {detail:{action:"clear-local"}}));
     return true;
   } catch {
     return false;
@@ -183,3 +184,5 @@ export function verifierStockage(): "ok" | "bloque" | "corrompu" {
     return "ok";
   } catch { return "bloque"; }
 }
+
+export function espaceCompteActif(id: string): boolean { return espace === `compte:${encodeURIComponent(id)}`; }
