@@ -181,3 +181,26 @@ test("le prompt impose les dix sections, la prudence et la séparation des donn�
   assert.match(prompt, /ne poses aucun diagnostic/i);
   assert.match(prompt, /Confiance : faible\|modérée\|élevée/);
 });
+
+test("une baisse de moyenne vers des valeurs basses ne devient pas une amélioration médicale",()=>{
+ const rapport=analyserGlycemie([{glycemie:120},{glycemie:120},{glycemie:55},{glycemie:55}],[]);
+ assert.equal(rapport.tendance.difference,-65);
+ assert.doesNotMatch(rapport.tendance.message,/détecte une amélioration/);
+ assert.match(rapport.tendance.message,/ne suffit pas/);
+});
+test("les horaires exploitent le timestamp et ignorent une heure invalide au lieu de la classer la nuit",()=>{
+ const instant=new Date(2026,6,1,18,30).toISOString();
+ const rapport=analyserGlycemie([{glycemie:220,timestamp:instant},{glycemie:220,heure:"24:99"}],[]);
+ assert.equal(rapport.horaires.soir,1);assert.equal(rapport.horaires.nuit,0);
+});
+test("dupliquer un événement du journal ne fabrique pas plusieurs associations indépendantes",()=>{
+ const m=[mesure("2026-07-01T11:00:00.000Z",105),mesure("2026-07-01T13:00:00.000Z",195)];
+ const event={type:"Repas",description:"Déjeuner",timestamp:"2026-07-01T12:00:00.000Z"};
+ const correlation=analyserGlycemie(m,Array.from({length:10},()=>({...event}))).avance.correlations[0];
+ assert.equal(correlation.nombreEvenements,10);assert.equal(correlation.evenementsExploitables,1);assert.equal(correlation.joursCouverts,1);assert.equal(correlation.confiance,"faible");
+});
+test("un historique volumineux conserve ses extrema sans dépasser la limite d’arguments JavaScript",()=>{
+ const rows=Array.from({length:130000},(_,i)=>({glycemie:i%2?49:280,timestamp:"2026-07-01T12:00:00.000Z"}));
+ const rapport=analyserGlycemie(rows,[]);const stats=rapport.avance.statistiquesPeriodes.find(s=>s.cle==='historique');
+ assert.equal(stats?.minimum,49);assert.equal(stats?.maximum,280);assert.equal(rapport.avance.alertesSecurite.length,2);
+});

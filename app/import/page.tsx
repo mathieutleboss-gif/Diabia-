@@ -1,8 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Papa from "papaparse";
-import { analyserCSVDetaille, choisirEntete, detecterColonnes, detecterUniteColonne, type CsvMapping, type CsvRow } from "../../lib/csvParser";
+import { analyserCSVDetaille, nommerColonnesCSV, choisirEntete, detecterColonnes, detecterUniteColonne, type CsvMapping, type CsvRow } from "../../lib/csvParser";
 import { fusionnerInjections, fusionnerMesures } from "../../lib/mesures";
 import { exporterDonneesLocales, lireProfilLocal, restaurerDonneesLocales } from "../../lib/storage";
 import type { GlucoseUnit } from "../../lib/glucoseUnits";
@@ -10,8 +10,10 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { FormField, GlassPanel, PageHero, PageShell, fieldClassName, primaryButtonClassName } from "../components/PageShell";
 
 const champs:Array<[keyof CsvMapping,string]> = [["timestamp","Horodatage complet"],["date","Date (si pas d’horodatage)"],["heure","Heure séparée"],["glycemie","Glycémie principale"],["glycemieSecondaire","Glycémie secondaire, si principale vide"],["insuline","Dose d’insuline (U)"],["insulineBasale","Autre dose / basale administrée (U)"],["typeInsuline","Type de dose, si présent"],["note","Note"]];
-function headers(row:unknown[] = []) {const seen=new Map<string,number>();return row.map((v,index)=>{const name=String(v??"").trim()||`Colonne ${index+1}`;const count=(seen.get(name)||0)+1;seen.set(name,count);return count>1?`${name} (${count})`:name;});}
+const headers=nommerColonnesCSV;
 export default function ImportPage() {
+  const lectureActive=useRef(0);
+  useEffect(()=>()=>{lectureActive.current++;},[]);
   const [rows,setRows]=useState<unknown[][]>([]),[entete,setEntete]=useState(0),[mapping,setMapping]=useState<CsvMapping>({});
   const [unite,setUnite]=useState<GlucoseUnit>(()=>lireProfilLocal().uniteGlycemie||"mg/dL");
   const [lecture,setLecture]=useState(false),[nom,setNom]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState("");
@@ -25,11 +27,11 @@ export default function ImportPage() {
   const total=analyse.mesures.length+analyse.injections.length;
   function configurer(index:number,tableau=rows){setEntete(index);const m=detecterColonnes(headers(tableau[index]));setMapping(m);const u=detecterUniteColonne(m.glycemie||m.glycemieSecondaire||"");if(u)setUnite(u);setValide(false);}
   function lire(event:React.ChangeEvent<HTMLInputElement>){
-    const f=event.target.files?.[0];event.target.value="";if(!f)return;
+    const f=event.target.files?.[0];event.target.value="";if(!f)return;const lectureId=++lectureActive.current;
     setRows([]);setMessage("");setError("");setValide(false);setNom(f.name);
     if(f.size>10*1024*1024){setError("Le fichier dépasse 10 Mo.");return;}
     setLecture(true);
-    try{Papa.parse<unknown[]>(f,{header:false,worker:true,complete(result){setLecture(false);if(result.errors.length){setError("Le fichier contient une erreur de structure CSV. Aucun enregistrement n’a été ajouté.");return;}if(!result.data.length){setError("Le fichier est vide.");return;}const index=choisirEntete(result.data);setRows(result.data);configurer(index,result.data);},error(){setLecture(false);setError("Lecture impossible. Aucune donnée n’a été modifiée.");}});}catch{setLecture(false);setError("Lecture impossible dans ce navigateur.");}
+    try{Papa.parse<unknown[]>(f,{header:false,worker:true,complete(result){if(lectureId!==lectureActive.current)return;setLecture(false);if(result.errors.length){setError("Le fichier contient une erreur de structure CSV. Aucun enregistrement n’a été ajouté.");return;}if(!result.data.length){setError("Le fichier est vide.");return;}const index=choisirEntete(result.data);setRows(result.data);configurer(index,result.data);},error(){if(lectureId!==lectureActive.current)return;setLecture(false);setError("Lecture impossible. Aucune donnée n’a été modifiée.");}});}catch{setLecture(false);setError("Lecture impossible dans ce navigateur.");}
   }
   function importer(){
     if(!valide||!configuration||ambigue||!total)return;

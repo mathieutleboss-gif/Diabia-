@@ -22,10 +22,12 @@ export default function RootLayout({
         <a href="#contenu-principal" className="sr-only z-[200] rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Aller au contenu principal</a>
         <SessionProvider>
         <Header />
+        <div className="app-content flex min-w-0 flex-1 flex-col">
         <StorageMigration />
         <DemoBanner />
         {children}
         <Footer />
+        </div>
         </SessionProvider>
       </body>
     </html>

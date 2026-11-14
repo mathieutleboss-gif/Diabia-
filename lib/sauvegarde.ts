@@ -19,7 +19,7 @@ export function sauvegardeValide(value: unknown): value is Record<string, unknow
   if (value.injections !== undefined) {
     if (!Array.isArray(value.injections)) return false;
     for (const row of value.injections) {
-      if (!objet(row) || typeof row.dose !== "number" || validerInsuline(row.dose) || !chaine(row.id,200) || typeof row.timestamp !== "string" || !row.timestamp || typeof row.date !== "string" || !dateValide(row) || !chaine(row.note,LIMITES_SAISIE.noteMax)) return false;
+      if (!objet(row) || typeof row.dose !== "number" || validerInsuline(row.dose) || (typeof row.id !== "string" || !row.id || row.id.length > 200) || typeof row.timestamp !== "string" || !row.timestamp || typeof row.date !== "string" || !dateValide(row) || !chaine(row.note,LIMITES_SAISIE.noteMax)) return false;
       if (row.type !== undefined && !["non_precise","rapide","basale"].includes(String(row.type))) return false;
     }
   }

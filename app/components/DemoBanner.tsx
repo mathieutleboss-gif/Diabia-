@@ -20,7 +20,7 @@ export default function DemoBanner() {
       setMessage("Exemple fictif actualisé avec les doses d’insuline. Les doses déjà renseignées sont conservées.");
       router.push("/dashboard/"); router.refresh(); return;
     }
-    if (existing.mesures.length || existing.journal.length || Object.values(existing.profil).some(Boolean)) {
+    if (existing.mesures.length || existing.injections.length || existing.journal.length || Object.values(existing.profil).some(Boolean)) {
       setMessage("Des données sont déjà présentes. Tu peux les supprimer depuis Profil avant de charger l’exemple.");
       return;
     }

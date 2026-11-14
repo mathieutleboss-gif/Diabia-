@@ -142,6 +142,7 @@ export type CorrelationJournal = {
   description: string;
   nombreEvenements: number;
   evenementsExploitables: number;
+  joursCouverts: number;
   differenceMoyenne: number | null;
   conclusion: string;
   preuves: string[];

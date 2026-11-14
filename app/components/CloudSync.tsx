@@ -14,19 +14,59 @@ function vide(d:Snapshot){return !d.mesures.length&&!d.injections.length&&!d.jou
 export default function CloudSync({children}:{children:React.ReactNode}){
  const{user,provider,syncAvailable}=useSessionDiabia();const enabled=provider==='diabia'&&syncAvailable&&!!user;
  const[status,setStatus]=useState("Synchronisation non activée"),[error,setError]=useState(""),[busy,setBusy]=useState(false),[conflict,setConflict]=useState(false);
- const conflitRef=useRef(false);
- function conflit(value:boolean){conflitRef.current=value;setConflict(value);}
- async function marquer(revision:number,valeur:string){const digest=await empreinte(valeur);if(autorise())sauvegarderLocal("diabia_sync_meta",{revision,digest},{notifier:false});}
- const remote=useRef<Remote|null>(null),dirty=useRef(false),running=useRef(false),active=useRef(false),saved=useRef("");
+ const state=useRef({active:false,generation:0,running:false,paused:false,dirty:false,saved:'',remote:null as Remote|null});
+ const edits=useRef(0);
+ const timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
  const namespace=user?`diabia:${user.id}`:'';
- function autorise(){return enabled&&active.current&&espaceCompteActif(namespace);}
- async function requete(method='GET',data?:object):Promise<Remote>{const r=await fetch('/api/sync',{method,credentials:'same-origin',cache:'no-store',...(data?{headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(15000)});const result=await r.json();if(!r.ok){if(r.status===409){conflit(true);setStatus("Conflit entre appareils : aucune donnée écrasée");}throw new Error(result.error||'Synchronisation impossible.');}return result;}
- async function check(){if(!autorise()||running.current)return;running.current=true;setBusy(true);setError('');try{const r=await requete();if(!autorise())return;remote.current=r;const local=exporterDonneesLocales();if(r.payload&& !sauvegardeValide(r.payload))throw new Error('La sauvegarde distante est invalide. Les données locales sont conservées.');if(r.payload&&vide(local)){if(!restaurerDonneesLocales(r.payload))throw new Error('La sauvegarde distante ne peut pas être enregistrée sur cet appareil.');saved.current=signature(exporterDonneesLocales());setStatus('Données récupérées depuis ton compte');conflit(false);}else if(r.payload&&signature(r.payload)===signature(local)){saved.current=signature(local);setStatus('Données à jour');conflit(false);}else if(!r.revision){setStatus('Prêt à sauvegarder tes données sur ton compte');conflit(false);}else{let meta:{revision?:number;digest?:string}={};try{meta=JSON.parse(lireValeurLocale('diabia_sync_meta','{}'));}catch{}if(meta.revision===r.revision&&meta.digest===await empreinte(signature(local))){saved.current=signature(local);setStatus('Données à jour');conflit(false);}else{conflit(true);setStatus(r.deleted?'La sauvegarde distante a été supprimée':'Versions différentes sur les appareils');}}}catch(e){if(autorise())setError(e instanceof Error?e.message:'Synchronisation impossible.');}finally{running.current=false;if(active.current)setBusy(false);}}
- async function save(force=false){if(!force&&conflitRef.current)return;if(!autorise()||running.current||remote.current===null)return;running.current=true;setBusy(true);setError('');try{const payload=exporterDonneesLocales();if(payload.mesures.some(m=>m.id?.startsWith('demo-')))throw new Error('L’exemple fictif intégré n’est pas envoyé automatiquement au stockage médical.');const result=await requete('PUT',{revision:remote.current.revision,payload});if(!autorise())return;remote.current={...result,payload};saved.current=signature(payload);await marquer(result.revision,saved.current);conflit(false);setStatus('Sauvegarde en ligne effectuée');dirty.current=signature(exporterDonneesLocales())!==saved.current;if(dirty.current){setStatus('Modifications récentes en attente de sauvegarde');setTimeout(()=>{if(autorise()&&!conflitRef.current)void actions.current.save();},1200);}}catch(e){if(autorise())setError(e instanceof Error?e.message:'Sauvegarde impossible.');}finally{running.current=false;if(active.current)setBusy(false);}}
- async function download(){if(!autorise()||running.current)return;running.current=true;setBusy(true);setError('');try{const r=await requete();if(!autorise())return;if(!r.payload)throw new Error('Aucune sauvegarde distante à récupérer. Les données locales sont conservées.');if(!sauvegardeValide(r.payload)||!restaurerDonneesLocales(r.payload))throw new Error('Restauration impossible.');remote.current=r;saved.current=signature(exporterDonneesLocales());await marquer(r.revision,saved.current);conflit(false);setStatus('Version distante récupérée');}catch(e){if(autorise())setError(e instanceof Error?e.message:'Récupération impossible.');}finally{running.current=false;if(active.current)setBusy(false);}}
- const actions=useRef({save,check});actions.current={save:()=>save(false),check};
- useEffect(()=>{active.current=enabled;remote.current=null;saved.current='';dirty.current=false;conflitRef.current=false;if(!enabled)return;void actions.current.check();let timer:ReturnType<typeof setTimeout>|undefined;function change(event:Event){if(event instanceof CustomEvent&&event.detail?.action==='clear-local'){dirty.current=true;conflit(true);setStatus('Données locales effacées : synchronisation mise en pause');return;}if(running.current)return;try{if(signature(exporterDonneesLocales())===saved.current)return;}catch{return;}dirty.current=true;clearTimeout(timer);timer=setTimeout(()=>{if(remote.current&&!running.current&&!conflitRef.current)void actions.current.save();},1200);}function focus(){if(!dirty.current&&!conflitRef.current)void actions.current.check();}window.addEventListener('diabia:storage',change);window.addEventListener('focus',focus);return()=>{active.current=false;clearTimeout(timer);window.removeEventListener('diabia:storage',change);window.removeEventListener('focus',focus);};},[enabled,user?.id]);
- // Un conflit ne doit jamais être résolu automatiquement.
- const safeSave=async()=>{await save(true);};
- return <Context.Provider value={{status,error,busy,conflict,enabled,save:safeSave,download,check}}>{children}</Context.Provider>;
+ function valid(generation:number){return enabled&&state.current.active&&state.current.generation===generation&&espaceCompteActif(namespace);}
+ function pause(message:string){state.current.paused=true;state.current.dirty=true;setConflict(true);setStatus(message);clearTimeout(timer.current);}
+ function clean(message:string){state.current.paused=false;state.current.dirty=false;setConflict(false);setStatus(message);}
+ async function mark(revision:number,value:string,generation:number){const digest=await empreinte(value);if(valid(generation))sauvegarderLocal('diabia_sync_meta',{revision,digest},{notifier:false});}
+ async function request(method='GET',data?:object):Promise<Remote>{
+  const r=await fetch('/api/sync',{method,credentials:'same-origin',cache:'no-store',headers:{'X-Diabia-Account':user?.id||'',...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(15000)});
+  const d=await r.json();if(!r.ok){if(d.accountMismatch)window.dispatchEvent(new Event('diabia:session-invalidated'));else if(r.status===409)pause('Versions différentes : aucune donnée écrasée');throw Error(d.error||'Synchronisation impossible.');}
+  if(!Number.isSafeInteger(d.revision)||d.revision<0)throw Error('Réponse distante invalide. Les données locales sont conservées.');return d;
+ }
+ async function check(){
+  const s=state.current,g=s.generation;if(!valid(g)||s.running)return;s.running=true;setBusy(true);setError('');
+  try{const before=signature(exporterDonneesLocales()),version=edits.current;const r=await request();if(!valid(g))return;s.remote=r;const local=exporterDonneesLocales(),current=signature(local);
+   if(r.payload&&!sauvegardeValide(r.payload))throw Error('La sauvegarde distante est invalide. Les données locales sont conservées.');
+   // Une saisie ou un effacement pendant la lecture ne doit pas être remplacé par son résultat.
+   if(current!==before||edits.current!==version||s.paused){pause('Modifications locales conservées : choisis la version à garder');return;}
+   if(r.payload&&vide(local)){if(!restaurerDonneesLocales(r.payload))throw Error('Restauration impossible.');s.saved=signature(exporterDonneesLocales());await mark(r.revision,s.saved,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Données récupérées depuis ton compte');else pause('Modifications locales conservées après récupération');}}
+   else if(r.payload&&signature(r.payload)===current){s.saved=current;await mark(r.revision,current,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Données à jour');else pause('Modifications locales en attente');}}
+   else if(!r.revision){s.dirty=current!==s.saved;setStatus('Prêt à sauvegarder tes données sur ton compte');}
+   else{let meta:{revision?:number;digest?:string}={};try{meta=JSON.parse(lireValeurLocale('diabia_sync_meta','{}'));}catch{}const digest=await empreinte(current);if(!valid(g))return;
+    if(meta.revision===r.revision&&meta.digest===digest){s.saved=current;clean('Données à jour');}else pause(r.deleted?'La sauvegarde distante a été supprimée':'Versions différentes sur les appareils');}
+  }catch(e){if(valid(g))setError(e instanceof Error?e.message:'Synchronisation impossible.');}
+  finally{if(valid(g)){s.running=false;setBusy(false);}}
+ }
+ function queue(){clearTimeout(timer.current);timer.current=setTimeout(()=>{if(state.current.dirty&&!state.current.paused)void actions.current.save();},1200);}
+ async function save(force=false){
+  const s=state.current,g=s.generation;if(!valid(g)||s.running||s.remote===null||(!force&&s.paused))return;s.running=true;setBusy(true);setError('');if(force){s.paused=false;setConflict(false);}
+  try{const payload=exporterDonneesLocales();if(payload.mesures.some(m=>m.id?.startsWith('demo-')))throw Error('L’exemple intégré n’est pas envoyé automatiquement au stockage médical.');
+   const r=await request('PUT',{revision:s.remote.revision,payload});if(!valid(g))return;s.remote={...r,payload};s.saved=signature(payload);await mark(r.revision,s.saved,g);if(!valid(g))return;
+   if(s.paused)return;s.dirty=signature(exporterDonneesLocales())!==s.saved;setStatus(s.dirty?'Modifications récentes en attente de sauvegarde':'Sauvegarde en ligne effectuée');if(s.dirty)queue();
+  }catch(e){if(valid(g))setError(e instanceof Error?e.message:'Sauvegarde impossible.');}
+  finally{if(valid(g)){s.running=false;setBusy(false);}}
+ }
+ async function download(){
+  const s=state.current,g=s.generation;if(!valid(g)||s.running)return;s.running=true;setBusy(true);setError('');
+  try{const before=signature(exporterDonneesLocales()),version=edits.current;const r=await request();if(!valid(g))return;if(signature(exporterDonneesLocales())!==before||edits.current!==version){pause('Les données ont changé pendant la récupération. Réessaie après avoir choisi la version à garder.');return;}
+   if(!r.payload)throw Error('Aucune sauvegarde distante à récupérer. Les données locales sont conservées.');if(!sauvegardeValide(r.payload)||!restaurerDonneesLocales(r.payload))throw Error('Restauration impossible.');
+   s.remote=r;s.saved=signature(exporterDonneesLocales());await mark(r.revision,s.saved,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Version distante récupérée');else pause('Modifications locales conservées après récupération');}
+  }catch(e){if(valid(g))setError(e instanceof Error?e.message:'Récupération impossible.');}
+  finally{if(valid(g)){s.running=false;setBusy(false);}}
+ }
+ const actions=useRef({save:()=>save(false),check});actions.current={save:()=>save(false),check};
+ useEffect(()=>{
+  state.current={active:enabled,generation:state.current.generation+1,running:false,paused:false,dirty:false,saved:'',remote:null};setBusy(false);setConflict(false);setError('');if(!enabled){setStatus('Synchronisation non activée');return;}
+  void actions.current.check();
+  function change(event:Event){edits.current++;if(event instanceof CustomEvent&&event.detail?.action==='clear-local'){pause('Données locales effacées : synchronisation mise en pause');return;}try{state.current.dirty=signature(exporterDonneesLocales())!==state.current.saved;if(state.current.dirty&&!state.current.running)queue();}catch{}}
+  function storage(event:StorageEvent){const prefix=`diabia:compte:${encodeURIComponent(namespace)}:`;if(event.key!==null&&!event.key.startsWith(prefix))return;if(event.key?.endsWith('diabia_sync_meta')||event.key?.endsWith('diabia_storage_probe'))return;if(event.newValue===null){edits.current++;pause('Données effacées dans un autre onglet : synchronisation mise en pause');return;}change(event);}
+  function focus(){if(!state.current.dirty&&!state.current.paused)void actions.current.check();}
+  window.addEventListener('diabia:storage',change);window.addEventListener('storage',storage);window.addEventListener('focus',focus);window.addEventListener('online',focus);
+  return()=>{state.current.active=false;state.current.generation++;clearTimeout(timer.current);window.removeEventListener('diabia:storage',change);window.removeEventListener('storage',storage);window.removeEventListener('focus',focus);window.removeEventListener('online',focus);};
+ },[enabled,user?.id]);
+ return <Context.Provider value={{status,error,busy,conflict,enabled,save:()=>save(true),download,check}}>{children}</Context.Provider>;
 }

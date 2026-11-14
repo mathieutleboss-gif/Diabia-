@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { exporterDonneesLocales, lireValeurLocale, migrerStockageLocal, restaurerDonneesLocales, sauvegarderLocal, verifierStockage } from "../lib/storage";
+import { activerEspaceCompte, supprimerDonneesLocales, exporterDonneesLocales, lireValeurLocale, migrerStockageLocal, restaurerDonneesLocales, sauvegarderLocal, verifierStockage } from "../lib/storage";
 import { STORAGE_KEYS } from "../lib/storageKeys";
 function navigateur(failure?: (action:string,key:string)=>void) {
   const data=new Map<string,string>();
@@ -54,4 +54,23 @@ test("un export puis une restauration conservent mesures, décimales, zéro et j
   const backup=JSON.parse(JSON.stringify(exporterDonneesLocales()));data.clear();
   assert.ok(restaurerDonneesLocales(backup));
   assert.deepEqual(JSON.parse(data.get("mesures")!),original.mesures);assert.deepEqual(JSON.parse(data.get("journal")!),original.journal);assert.deepEqual(JSON.parse(data.get("profil")!),original.profil);
+});
+
+test("une ligne stockée invalide est signalée et n’est pas perdue lors d’une nouvelle saisie",()=>{
+  const data=navigateur();const raw=JSON.stringify([{glycemie:120},{glycemie:{invalide:true}}]);data.set("mesures",raw);
+  assert.equal(verifierStockage(),"corrompu");
+  assert.equal(sauvegarderLocal("mesures",[{glycemie:120},{glycemie:140}]),false);
+  assert.equal(data.get("mesures"),raw);
+});
+test("une suppression interrompue remet les clés effacées quand le navigateur autorise le retour arrière",()=>{
+  let echec=true;const data=navigateur((action,key)=>{if(action==='remove'&&key==='journal'&&echec){echec=false;throw Error('Refus');}});
+  data.set('mesures','[{"glycemie":120}]');data.set('journal','[]');data.set('profil','{"prenom":"Exemple"}');data.set('diabia_sync_meta','{"revision":2}');
+  const avant=[...data].sort();assert.equal(supprimerDonneesLocales(),false);assert.deepEqual([...data].sort(),avant);
+});
+test("les espaces de deux comptes restent indépendants après sauvegarde, restauration et retour au premier compte",()=>{
+  const data=navigateur();
+  activerEspaceCompte('compte-A');assert.ok(restaurerDonneesLocales({version:3,mesures:[{id:'A',glycemie:120}],journal:[],profil:{prenom:'A'}}));
+  activerEspaceCompte('compte-B');assert.equal(exporterDonneesLocales().mesures.length,0);assert.ok(restaurerDonneesLocales({version:3,mesures:[{id:'B',glycemie:140}],journal:[],profil:{prenom:'B'}}));
+  activerEspaceCompte('compte-A');assert.equal(exporterDonneesLocales().mesures[0].glycemie,120);assert.equal(exporterDonneesLocales().profil.prenom,'A');
+  activerEspaceCompte('compte-B');assert.equal(exporterDonneesLocales().mesures[0].glycemie,140);assert.equal(data.size,10);
 });

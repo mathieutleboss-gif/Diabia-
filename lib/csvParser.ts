@@ -5,6 +5,17 @@ import { LIMITES_SAISIE, validerGlycemieMgDl, validerInsuline } from "./saisie";
 export type CsvRow = Record<string, unknown>;
 export type CsvMapping = Partial<Record<"glycemie"|"glycemieSecondaire"|"insuline"|"insulineBasale"|"date"|"heure"|"timestamp"|"note"|"typeInsuline", string>>;
 export type CsvParseResult = { mesures: Mesure[]; injections: InjectionInsuline[]; lignesRejetees: number; colonnesDetectees: string[]; rejets: Array<{ligne:number;raison:string}> };
+/** Des noms uniques même si le fichier contient déjà des suffixes « (2) ». */
+export function nommerColonnesCSV(row: unknown[] = []): string[] {
+  const utilises = new Set<string>();
+  return row.map((value, index) => {
+    const base = String(value ?? "").trim() || `Colonne ${index + 1}`;
+    let name = base, suffixe = 2;
+    while (utilises.has(name)) name = `${base} (${suffixe++})`;
+    utilises.add(name);
+    return name;
+  });
+}
 export function normaliserColonne(value:string) {return value.replace(/^\uFEFF/,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/\s+/g," ");}
 const aliases: Record<keyof CsvMapping,string[]> = {
   glycemie:["glycemie","glucose","sg","glucose value (mg/dl)","glucose value (mmol/l)","historic glucose mg/dl","historic glucose mmol/l","historique de la glycemie mg/dl","historique de la glycemie mmol/l","glucose (mg/dl)","glucose (mmol/l)"],

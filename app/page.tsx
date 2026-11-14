@@ -4,7 +4,7 @@ import { ROUTES } from "../lib/routes";
 const features = [
   ["◎", "Analyse claire", "Mesures dans la cible, variations, tendances et score synthétique."],
   ["⌁", "Contexte utile", "Journalise repas, activité et insuline pour enrichir la lecture."],
-  ["✦", "IA maîtrisée", "Découvre la démonstration Mistral sur des exemples fictifs."],
+  ["✦", "Assistant", "Découvre l’espace préparé pour l’assistant sur des exemples fictifs."],
 ];
 
 export default function Home() {

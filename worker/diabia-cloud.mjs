@@ -13,7 +13,8 @@ async function identity(request,c){const cs=cookiesOf(request);let token=cs[AT],
  if(cs[RT]){const r=await backend(c,'/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:cs[RT]}});if(r.ok){const data=await r.json();set=tokens(data);token=data.access_token;const check=await backend(c,'/auth/v1/user',{token});if(check.ok){const u=await check.json();if(typeof u.id==='string'&&typeof u.email==='string')return verifiedSession(c,u,token,set);}}else if(r.status>=500)throw new Error('Service indisponible');}
  return null;
 }
-async function body(request,max=16000){const reader=request.body?.getReader();if(!reader)throw new Error('Corps absent');const chunks=[];let size=0;while(true){const{value,done}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw new Error('Requête trop volumineuse');}chunks.push(value);}const all=new Uint8Array(size);let offset=0;for(const v of chunks){all.set(v,offset);offset+=v.length;}const data=JSON.parse(new TextDecoder().decode(all));if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Format invalide');return data;}
+async function body(request,max=16000){const reader=request.body?.getReader();if(!reader)throw Object.assign(new Error('Corps absent'),{status:400});const chunks=[];let size=0;while(true){const{value,done}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw Object.assign(new Error('Requête trop volumineuse'),{status:413});}chunks.push(value);}const all=new Uint8Array(size);let offset=0;for(const v of chunks){all.set(v,offset);offset+=v.length;}let data;try{data=JSON.parse(new TextDecoder().decode(all));}catch{throw Object.assign(new Error('Format JSON invalide'),{status:400});}if(!data||typeof data!=='object'||Array.isArray(data))throw Object.assign(new Error('Format invalide'),{status:400});return data;}
+function accountGuard(request,session){const expected=request.headers.get('X-Diabia-Account');if(!expected)return json({error:'Le compte doit être revérifié avant cette opération.',accountMismatch:true},409,session.set);return expected===session.user.id?null:json({error:'Le compte connecté a changé. Reconnecte-toi avant de continuer.',accountMismatch:true},409,session.set);}
 function email(value){return typeof value==='string'&&value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function password(value){return typeof value==='string'&&value.length>=12&&value.length<=256;}
 function b64(bytes){return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
@@ -79,6 +80,7 @@ export async function cloudRoute(request,env){
   if(p==='/api/account/export'||p==='/api/account/delete'){
    const exporting=p.endsWith('/export');if(request.method!==(exporting?'GET':'POST'))return json({error:'Méthode non autorisée.'},405);
    const session=await identity(request,c);if(!session)return json({error:'Connexion Diabia requise.'},401,clear());
+   const mismatch=accountGuard(request,session);if(mismatch)return mismatch;
    if(exporting){
     const path=`user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`;
     const [snapshot,test]=await Promise.all([backend(c,`/rest/v1/diabia_snapshots?${path}&select=revision,payload,updated_at`,{token:session.token}),backend(c,`/rest/v1/diabia_sync_tests?${path}&select=revision,updated_at`,{token:session.token})]);
@@ -96,13 +98,14 @@ export async function cloudRoute(request,env){
   }
   if(p==='/api/auth/logout-all'&&request.method==='POST'){
    const session=await identity(request,c);if(!session)return json({error:'Connexion requise.'},401,clear());
+   const mismatch=accountGuard(request,session);if(mismatch)return mismatch;
    const r=await backend(c,'/auth/v1/logout?scope=global',{method:'POST',token:session.token});
    return r.ok?json({ok:true},200,clear()):json({error:'Déconnexion globale non confirmée. Réessaie plus tard.'},503,session.set);
   }
   if(p==='/api/sync-test'){
    if(env.DIABIA_SYNC_TEST_ENABLED!=='true')return json({error:'Le test de synchronisation n’est pas activé.'},503);
    if(request.method!=='GET'&&request.method!=='POST')return json({error:'Méthode non autorisée'},405);
-   const s=await identity(request,c);if(!s)return json({error:'Connexion Diabia requise.'},401,clear());
+   const s=await identity(request,c);if(!s)return json({error:'Connexion Diabia requise.'},401,clear());const mismatch=accountGuard(request,s);if(mismatch)return mismatch;
    const example={fictif:true,glycemieMgDl:112,insulineUnites:4};
    if(request.method==='GET'){
     const r=await backend(c,`/rest/v1/diabia_sync_tests?user_id=eq.${encodeURIComponent(s.user.id)}&select=revision,updated_at&limit=1`,{token:s.token});
@@ -119,7 +122,7 @@ export async function cloudRoute(request,env){
    if(request.method!=='GET')return json({error:'Méthode non autorisée'},405);
    const session=await identity(request,c);return session?json({authenticated:true,user:session.user,provider:'diabia',syncAvailable:c.sync},200,session.set):json({authenticated:false,provider:'diabia'},401,clear());
   }
-  if(p==='/api/auth/logout'&&request.method==='POST'){const s=await identity(request,c);if(s)await backend(c,'/auth/v1/logout?scope=local',{method:'POST',token:s.token});return json({ok:true},200,clear());}
+  if(p==='/api/auth/logout'&&request.method==='POST'){const s=await identity(request,c);if(s){const mismatch=accountGuard(request,s);if(mismatch)return mismatch;const r=await backend(c,'/auth/v1/logout?scope=local',{method:'POST',token:s.token});if(!r.ok)return json({ok:true,warning:'Déconnexion locale effectuée ; révocation distante non confirmée.'},200,clear());}return json({ok:true},200,clear());}
   if(p==='/api/auth/login'&&request.method==='POST'){
    const d=await body(request);if(!email(d.email)||typeof d.password!=='string'||d.password.length>256)return json({error:'Adresse e-mail ou mot de passe invalide.'},400);
    const r=await backend(c,'/auth/v1/token?grant_type=password',{method:'POST',body:{email:d.email.trim(),password:d.password}});if(!r.ok)return json({error:r.status===429?'Trop de tentatives. Réessaie plus tard.':'Connexion impossible. Vérifie tes identifiants et la confirmation de ton adresse.'},r.status===429?429:401);
@@ -144,7 +147,7 @@ export async function cloudRoute(request,env){
   }
   if(p==='/api/sync'){
    if(!c.sync)return json({error:'Le stockage distant des données de santé n’est pas activé.'},503);
-   const s=await identity(request,c);if(!s)return json({error:'Connexion Diabia requise.'},401,clear());
+   const s=await identity(request,c);if(!s)return json({error:'Connexion Diabia requise.'},401,clear());const mismatch=accountGuard(request,s);if(mismatch)return mismatch;
    if(request.method==='GET'){
     const r=await backend(c,`/rest/v1/diabia_snapshots?user_id=eq.${encodeURIComponent(s.user.id)}&select=revision,payload,updated_at&limit=1`,{token:s.token});if(!r.ok)return json({error:'Lecture distante indisponible.'},503,s.set);const rows=await r.json();const row=rows[0];return json(row?{...row,deleted:row.payload===null}:{revision:0,payload:null,deleted:false},200,s.set);
    }
@@ -154,5 +157,5 @@ export async function cloudRoute(request,env){
    const r=await backend(c,'/rest/v1/rpc/diabia_sync_write',{method:'POST',token:s.token,body:{expected_revision:d.revision,new_payload:d.payload??null,erase:request.method==='DELETE'}});if(!r.ok)return json({error:'Enregistrement distant impossible.'},503,s.set);const data=await r.json();return data.conflict?json({error:'Un autre appareil a modifié les données. Récupère la version distante avant de continuer.',conflict:true},409,s.set):json(data,200,s.set);
   }
   return json({error:'Méthode ou route non autorisée.'},405);
- }catch{if(p==='/api/auth/logout')return json({ok:true,warning:'Déconnexion locale effectuée ; révocation distante non confirmée.'},200,clear());return json({error:'Service indisponible ou requête invalide. Aucune nouvelle tentative automatique.'},503);}
+ }catch(error){if(error?.status===400||error?.status===413)return json({error:error.message},error.status);if(p==='/api/auth/logout')return json({ok:true,warning:'Déconnexion locale effectuée ; révocation distante non confirmée.'},200,clear());return json({error:'Service indisponible ou requête invalide. Aucune nouvelle tentative automatique.'},503);}
 }

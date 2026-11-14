@@ -19,7 +19,7 @@ export function fusionnerMesures(actuelles: Mesure[], nouvelles: Mesure[]) {
 }
 function cellule(value: string | number | undefined) {
   const text = String(value ?? "");
-  const protege = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  const protege = /^[\s\uFEFF]*[=+\-@＝＋－＠]|^[\t\r\n]/.test(text) ? `'${text}` : text;
   return `"${protege.replace(/"/g, '""')}"`;
 }
 export function exporterMesuresCSV(mesures: Mesure[], injections: import("./analyses/types").InjectionInsuline[] = []): string {
@@ -28,10 +28,10 @@ export function exporterMesuresCSV(mesures: Mesure[], injections: import("./anal
     const date = temps === null ? m.date || "" : new Date(temps).toLocaleDateString("fr-FR");
     const heure = temps === null ? m.heure || "" : new Date(temps).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit",second:"2-digit"});
     const dose = lireDoseInsuline(m.insuline);
-    return [m.glycemie,date,heure,dose === null ? "" : dose,m.note].map(cellule).join(";");
+    return [m.glycemie,date,heure,dose === null ? "" : dose,m.note,temps === null ? "" : new Date(temps).toISOString(),dose === null ? "" : "non_precise"].map(cellule).join(";");
   });
-  for (const i of injections) rows.push(["",i.date,i.heure,i.dose,i.note].map(cellule).join(";"));
-  return "\uFEFFglycémie;date;heure;insuline;note\r\n" + rows.join("\r\n");
+  for (const i of injections) rows.push(["",i.date,i.heure,i.dose,i.note,i.timestamp,i.type||"non_precise"].map(cellule).join(";"));
+  return "\uFEFFglycémie;date;heure;insuline;note;timestamp;type_insuline\r\n" + rows.join("\r\n");
 }
 
 export function fusionnerInjections(actuelles: import("./analyses/types").InjectionInsuline[], nouvelles: import("./analyses/types").InjectionInsuline[], mesures: Mesure[] = []) {

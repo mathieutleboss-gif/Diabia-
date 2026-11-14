@@ -41,7 +41,7 @@ test("réimporter les mêmes mesures conserve l'historique et ne double pas les 
 });
 test("l'export CSV conserve zéro, dose vide, guillemets et protège les cellules de formule", () => {
   const csv=exporterMesuresCSV([{glycemie:120,date:"04/08/2026",heure:"08:00",insuline:0,note:'texte;avec "guillemets"'},{glycemie:130,date:"04/08/2026",heure:"09:00",note:"=1+1"}]);
-  assert.ok(csv.startsWith("\uFEFFglycémie;date;heure;insuline;note\r\n"));
+  assert.ok(csv.startsWith("\uFEFFglycémie;date;heure;insuline;note;timestamp;type_insuline\r\n"));
   assert.match(csv,/"0";"texte;avec ""guillemets"""/);
   assert.ok(csv.includes(';"";"\'=1+1"'));
 });
@@ -49,4 +49,13 @@ test("la validation d'une sauvegarde refuse les versions futures et valeurs inva
   const sauvegarde={version:2,mesures:[{glycemie:120,insuline:0,date:"04/08/2026"}],journal:[],profil:{}};
   assert.ok(sauvegardeValide(sauvegarde));
   for (const modif of [{version:999},{profil:[]},{mesures:[{glycemie:"abc"}]},{mesures:[{glycemie:120,insuline:-1}]},{mesures:[{glycemie:120,date:"2026-02-30"}]},{profil:{uniteGlycemie:"inconnue"}}]) assert.equal(sauvegardeValide({...sauvegarde,...modif}),false);
+});
+
+test("une sauvegarde d’injections sans identifiant est refusée au lieu de perdre silencieusement la dose",()=>{
+  assert.equal(sauvegardeValide({version:3,mesures:[],journal:[],profil:{},injections:[{dose:4,date:'04/08/2026',timestamp:'2026-08-04T08:00:00Z'}]}),false);
+});
+test("les formules CSV restent neutralisées après des espaces, retours à la ligne ou un BOM",()=>{
+  for(const note of ['  =HYPERLINK("x")','\n+SUM(1;1)','\uFEFF@SUM(1;1)',' \t-CMD()','＝1+1']){
+    const csv=exporterMesuresCSV([{glycemie:120,note}]);assert.ok(csv.includes(`"'${note.replace(/"/g,'""')}"`),JSON.stringify(note));
+  }
 });

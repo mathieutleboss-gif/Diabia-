@@ -53,8 +53,13 @@ export function sauvegarderLocal(key: string, value: unknown, options: { notifie
       const raw = stockage().getItem(key);
       if (raw !== null) {
         const parsed = JSON.parse(raw);
-        if (key === STORAGE_KEYS.profil ? !parsed || typeof parsed !== "object" || Array.isArray(parsed) : !Array.isArray(parsed)) return false;
+        const partie = (value: unknown) => ({version: STORAGE_VERSION, mesures: [], journal: [], injections: [], profil: {}, [key === STORAGE_KEYS.mesures ? "mesures" : key === STORAGE_KEYS.journal ? "journal" : key === STORAGE_KEYS.injections ? "injections" : "profil"]: value});
+        if (!sauvegardeValide(partie(parsed))) return false;
       }
+    }
+    if ([STORAGE_KEYS.mesures, STORAGE_KEYS.journal, STORAGE_KEYS.profil, STORAGE_KEYS.injections].some(cle => cle === key)) {
+      const nom = key === STORAGE_KEYS.mesures ? "mesures" : key === STORAGE_KEYS.journal ? "journal" : key === STORAGE_KEYS.injections ? "injections" : "profil";
+      if (!sauvegardeValide({version: STORAGE_VERSION, mesures: [], journal: [], injections: [], profil: {}, [nom]: value})) return false;
     }
     stockage().setItem(key, JSON.stringify(value));
     if (options.notifier !== false) window.dispatchEvent(new Event("diabia:storage"));
@@ -115,19 +120,20 @@ export function exporterDonneesLocales() {
 
 export function supprimerDonneesLocales(): boolean {
   if (typeof window === "undefined") return false;
-
+  const cles = [STORAGE_KEYS.injections, STORAGE_KEYS.mesures, STORAGE_KEYS.journal, STORAGE_KEYS.profil, STORAGE_KEYS.version, "diabia_sync_meta"];
   try {
-    stockage().removeItem(STORAGE_KEYS.injections);
-    stockage().removeItem(STORAGE_KEYS.mesures);
-    stockage().removeItem(STORAGE_KEYS.journal);
-    stockage().removeItem(STORAGE_KEYS.profil);
-    stockage().removeItem(STORAGE_KEYS.version);
-    stockage().removeItem("diabia_sync_meta");
+    const avant = cles.map(cle => [cle, stockage().getItem(cle)] as const);
+    try { for (const cle of cles) stockage().removeItem(cle); }
+    catch {
+      for (const [cle, valeur] of avant) {
+        try { if (valeur === null) stockage().removeItem(cle); else stockage().setItem(cle, valeur); }
+        catch { /* Le navigateur peut aussi empêcher le retour arrière : échec signalé. */ }
+      }
+      return false;
+    }
     window.dispatchEvent(new CustomEvent("diabia:storage", {detail:{action:"clear-local"}}));
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
 export function restaurerDonneesLocales(value: unknown): boolean {
@@ -179,6 +185,14 @@ export function verifierStockage(): "ok" | "bloque" | "corrompu" {
         } catch { return "corrompu"; }
       }
     }
+    const snapshot = {
+      version: STORAGE_VERSION,
+      mesures: JSON.parse(stockage().getItem(STORAGE_KEYS.mesures) || "[]"),
+      journal: JSON.parse(stockage().getItem(STORAGE_KEYS.journal) || "[]"),
+      injections: JSON.parse(stockage().getItem(STORAGE_KEYS.injections) || "[]"),
+      profil: JSON.parse(stockage().getItem(STORAGE_KEYS.profil) || "{}"),
+    };
+    if (!sauvegardeValide(snapshot)) return "corrompu";
     const key = "diabia_storage_probe";
     stockage().setItem(key,"1"); stockage().removeItem(key);
     return "ok";
