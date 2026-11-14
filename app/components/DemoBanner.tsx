@@ -8,7 +8,8 @@ export default function DemoBanner() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   function charger() {
-    const existing = exporterDonneesLocales();
+    let existing: ReturnType<typeof exporterDonneesLocales>;
+    try { existing = exporterDonneesLocales(); } catch { setMessage("Le stockage est inaccessible ou les données doivent être vérifiées. L’exemple n’a pas été chargé et aucune donnée n’a été remplacée."); return; }
     if (existing.mesures.length && existing.mesures.every(mesure => mesure.id?.startsWith("demo-") && mesure.note === "Exemple fictif de démonstration")) {
       const mesures = existing.mesures.map(mesure => {
         const index = Number(mesure.id?.slice(-1));

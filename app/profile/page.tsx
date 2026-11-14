@@ -75,10 +75,12 @@ function DataControls() {
   const importRef = useRef<HTMLInputElement>(null);
 
   function exporter() {
+    try {
     const blob = new Blob([JSON.stringify(exporterDonneesLocales(), null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const lien = document.createElement("a"); lien.href = url; lien.download = `diabia-export-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(lien); lien.click(); lien.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setErreur(""); setSucces("Export téléchargé. Conserve ce fichier dans un emplacement sûr : il contient tes données Diabia.");
+    setErreur(""); setSucces("Export proposé au téléchargement. Conserve ce fichier dans un emplacement sûr : il contient tes données Diabia.");
+    } catch { setSucces(""); setErreur("Impossible de générer une sauvegarde valide. Le stockage est inaccessible ou certaines données locales doivent être vérifiées. Aucune donnée n’a été effacée."); }
   }
 
   async function restaurer(event: React.ChangeEvent<HTMLInputElement>) {

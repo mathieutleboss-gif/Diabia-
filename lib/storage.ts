@@ -92,13 +92,11 @@ export function migrerStockageLocal(): boolean {
 }
 
 export function exporterDonneesLocales() {
-  return {
-    version: STORAGE_VERSION,
-    exporteLe: new Date().toISOString(),
-    mesures: lireMesuresLocales(),
-    journal: lireJournalLocal(),
-    profil: lireProfilLocal(),
-  };
+  if (typeof window === "undefined") throw new Error("Le stockage local n’est pas accessible.");
+  const lire = (key: string, fallback: string) => JSON.parse(localStorage.getItem(key) || fallback) as unknown;
+  const donnees = { version: STORAGE_VERSION, exporteLe: new Date().toISOString(), mesures: lire(STORAGE_KEYS.mesures,"[]"), journal: lire(STORAGE_KEYS.journal,"[]"), profil: lire(STORAGE_KEYS.profil,"{}") };
+  if (!sauvegardeValide(donnees)) throw new Error("Les données locales doivent être vérifiées avant de générer une sauvegarde restaurable.");
+  return { ...donnees, mesures: normaliserMesures(donnees.mesures), journal: normaliserJournal(donnees.journal), profil: normaliserProfil(donnees.profil) };
 }
 
 export function supprimerDonneesLocales(): boolean {

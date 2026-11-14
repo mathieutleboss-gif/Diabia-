@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lireValeurLocale, migrerStockageLocal, restaurerDonneesLocales, sauvegarderLocal, verifierStockage } from "../lib/storage";
+import { exporterDonneesLocales, lireValeurLocale, migrerStockageLocal, restaurerDonneesLocales, sauvegarderLocal, verifierStockage } from "../lib/storage";
 import { STORAGE_KEYS } from "../lib/storageKeys";
 function navigateur(failure?: (action:string,key:string)=>void) {
   const data=new Map<string,string>();
@@ -41,4 +41,17 @@ test("les données JSON corrompues sont signalées sans être effacées",()=>{
   assert.equal(verifierStockage(),"corrompu");
   assert.equal(sauvegarderLocal("mesures",[{glycemie:140}]),false);
   assert.equal(data.get("mesures"),"{cassé");
+});
+
+test("l'export refuse un stockage inaccessible ou corrompu au lieu de produire une sauvegarde vide",()=>{
+  const data=navigateur();data.set("mesures","{cassé");assert.throws(()=>exporterDonneesLocales());
+  navigateur(()=>{throw new Error("Bloqué");});assert.throws(()=>exporterDonneesLocales());
+});
+test("un export puis une restauration conservent mesures, décimales, zéro et journal",()=>{
+  const data=navigateur();
+  const original={version:2,mesures:[{id:"m1",glycemie:120.5,insuline:0,date:"04/08/2026",heure:"08:00",note:"exemple"},{id:"m2",glycemie:130,insuline:2.25,date:"04/08/2026",heure:"12:00"}],journal:[{id:"j1",description:"marche",date:"04/08/2026"}],profil:{prenom:"Exemple",uniteGlycemie:"mmol/L"}};
+  assert.ok(restaurerDonneesLocales(original));
+  const backup=JSON.parse(JSON.stringify(exporterDonneesLocales()));data.clear();
+  assert.ok(restaurerDonneesLocales(backup));
+  assert.deepEqual(JSON.parse(data.get("mesures")!),original.mesures);assert.deepEqual(JSON.parse(data.get("journal")!),original.journal);assert.deepEqual(JSON.parse(data.get("profil")!),original.profil);
 });
