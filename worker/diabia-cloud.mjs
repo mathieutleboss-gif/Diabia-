@@ -130,20 +130,38 @@ export async function cloudRoute(request,env){
   }
   if((p==='/api/auth/signup'||p==='/api/auth/recover')&&request.method==='POST'){
    const d=await body(request);if(!email(d.email)||p.endsWith('signup')&&!password(d.password))return json({error:'Adresse e-mail valide et mot de passe d’au moins 12 caractères requis.'},400);
-   const pk=await challenge(),redirect=`${url.origin}/account/callback/`,recover=p.endsWith('recover');
+   const recover=p.endsWith('recover'),pk=await challenge(),redirect=`${url.origin}/account/${recover?'reset-password':'callback'}/`;
    const r=await backend(c,`/auth/v1/${recover?'recover':'signup'}?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:{email:d.email.trim(),...(!recover?{password:d.password}:{}),code_challenge:pk.challenge,code_challenge_method:'s256'}});
-   if(!r.ok)return json({error:r.status===429?'Limite d’envoi atteinte. Réessaie plus tard.':'Le service n’a pas pu traiter la demande. Vérifie sa configuration.'},r.status===429?429:502);
-   const data=await r.json();if(data.access_token)return json({ok:true,confirmationRequired:false},200,tokens(data));
+   if(!r.ok){if(recover&&[400,404,422].includes(r.status))return json({ok:true,confirmationRequired:true,recovery:true},200,[cookie(PK,pk.verifier,600),cookie(FLOW,'recovery',600)]);return json({error:r.status===429?'Limite d’envoi atteinte. Réessaie plus tard.':'Le service n’a pas pu traiter la demande. Vérifie sa configuration.'},r.status===429?429:502);}
+   const data=await r.json();if(!recover&&data.access_token)return json({ok:true,confirmationRequired:false},200,tokens(data));
    return json({ok:true,confirmationRequired:true,recovery:recover},200,[cookie(PK,pk.verifier,600),cookie(FLOW,recover?"recovery":"signup",600)]);
   }
   if(p==='/api/auth/exchange'&&request.method==='POST'){
    const d=await body(request),verifier=cookiesOf(request)[PK];if(typeof d.code!=='string'||d.code.length>2048||!verifier)return json({error:'Lien expiré ou ouvert dans un autre navigateur. Relance la demande.'},400);
+   // Do not consume a recovery code or turn it into an ordinary logged-in session.
+   if(cookiesOf(request)[FLOW]==='recovery')return json({ok:true,recovery:true});
    const r=await backend(c,'/auth/v1/token?grant_type=pkce',{method:'POST',body:{auth_code:d.code,code_verifier:verifier}});if(!r.ok)return json({error:'Lien invalide ou expiré. Relance la demande.'},400,[cookie(PK,'',0)]);
    return json({ok:true,recovery:cookiesOf(request)[FLOW]==='recovery'},200,[...tokens(await r.json()),cookie(PK,'',0),cookie(FLOW,'',0)]);
   }
   if(p==='/api/auth/password'&&request.method==='POST'){
-   const s=await identity(request,c);if(!s)return json({error:'Connexion requise.'},401,clear());const d=await body(request);if(!password(d.password))return json({error:'Choisis au moins 12 caractères.'},400);
-   const r=await backend(c,'/auth/v1/user',{method:'PUT',token:s.token,body:{password:d.password}});return r.ok?json({ok:true},200,s.set):json({error:'Modification impossible. Reconnecte-toi et réessaie.'},400,s.set);
+   const d=await body(request,6000);
+   if(!password(d.password)||d.password!==d.confirmation)return json({error:'Choisis de 12 à 256 caractères et confirme le même mot de passe.'},400);
+   const hash=typeof d.token_hash==='string'&&/^[a-zA-Z0-9_-]{20,512}$/.test(d.token_hash);
+   const code=typeof d.code==='string'&&d.code.length>0&&d.code.length<=2048;
+   const cs=cookiesOf(request);
+   if(Object.keys(d).some(k=>!['password','confirmation','token_hash','code'].includes(k))||hash===code||(!hash&&!(code&&cs[PK]&&cs[FLOW]==='recovery')))return json({error:'Lien de récupération absent ou invalide. Demande un nouveau lien.'},400);
+   // Only Supabase verification grants the authority to reset. Never use the current login cookie.
+   const verified=await backend(c,hash?'/auth/v1/verify':'/auth/v1/token?grant_type=pkce',{method:'POST',body:hash?{token_hash:d.token_hash,type:'recovery'}:{auth_code:d.code,code_verifier:cs[PK]}});
+   if(!verified.ok)return json({error:'Lien invalide, expiré ou déjà utilisé. Demande un nouveau lien.'},400,[cookie(PK,'',0),cookie(FLOW,'',0)]);
+   const session=await verified.json();
+   if(typeof session.access_token!=='string')return json({error:'Le lien n’a pas produit de session valide. Demande un nouveau lien.'},400);
+   const check=await backend(c,'/auth/v1/user',{token:session.access_token});
+   if(!check.ok)return json({error:'Le lien n’est plus valide. Demande un nouveau lien.'},400);
+   const owner=await check.json();if(typeof owner.id!=='string')throw new Error('Identité invalide');
+   const r=await backend(c,'/auth/v1/user',{method:'PUT',token:session.access_token,body:{password:d.password}});
+   if(!r.ok)return json({error:'Le mot de passe n’a pas été modifié. Choisis un mot de passe différent et demande un nouveau lien.'},400,clear());
+   const logout=await backend(c,'/auth/v1/logout?scope=global',{method:'POST',token:session.access_token}).catch(()=>null);
+   return json({ok:true,...(!logout?.ok?{warning:'Mot de passe enregistré ; la fermeture de toutes les sessions n’a pas pu être confirmée.'}:{})},200,clear());
   }
   if(p==='/api/sync'){
    if(!c.sync)return json({error:'Le stockage distant des données de santé n’est pas activé.'},503);
