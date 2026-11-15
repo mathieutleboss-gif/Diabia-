@@ -17,6 +17,13 @@ async function body(request,max=16000){const reader=request.body?.getReader();if
 function accountGuard(request,session){const expected=request.headers.get('X-Diabia-Account');if(!expected)return json({error:'Le compte doit être revérifié avant cette opération.',accountMismatch:true},409,session.set);return expected===session.user.id?null:json({error:'Le compte connecté a changé. Reconnecte-toi avant de continuer.',accountMismatch:true},409,session.set);}
 function email(value){return typeof value==='string'&&value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function password(value){return typeof value==='string'&&value.length>=12&&value.length<=256;}
+// Verified live Sites origin. Email destinations must not depend on an internal proxy host.
+function publicAppOrigin(env){const u=new URL(env.DIABIA_PUBLIC_APP_URL||'https://diabia-demo.validpika65.chatgpt.site');if(u.protocol!=='https:'||u.username||u.password||u.pathname!=='/'||u.search||u.hash||u.hostname==='localhost'||u.hostname.endsWith('.localhost')||u.hostname==='[::1]'||u.hostname.startsWith('127.')||u.hostname==='0.0.0.0')throw new Error('URL publique invalide');return u.origin;}
+// Call only AFTER Supabase /user has validated the signature and identified the subject.
+// Supabase verifyGet issues implicit recovery sessions with AMR "otp" (auth/internal/api/verify.go).
+// This accepts a fresh provider-verified email authentication, never a password-only session.
+function isVerifiedRecoveryToken(token,owner,c){try{const encoded=token.split('.')[1].replaceAll('-','+').replaceAll('_','/');const claims=JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length/4)*4,'='))),now=Date.now()/1000;return typeof owner.email==='string'&&!!owner.email_confirmed_at&&claims.sub===owner.id&&claims.iss===`${c.url}/auth/v1`&&Number.isFinite(claims.exp)&&claims.exp>now&&Array.isArray(claims.amr)&&claims.amr.some(a=>['recovery','otp'].includes(a.method)&&Number.isFinite(a.timestamp)&&a.timestamp<=now+60&&a.timestamp>=now-3600);}catch{return false;}}
+async function mailFailure(r){let d={};try{d=await r.json();}catch{}if(r.status===429){const hourly=d.code==='over_email_send_rate_limit';const upstream=r.headers.get('Retry-After');const seconds=upstream&&/^\d+$/.test(upstream)&&Number(upstream)>0?Math.min(86400,Number(upstream)):null;const wait=seconds??(hourly?3600:60);const result=json({error:hourly?'Limite du service e-mail gratuit : 2 envois par heure pour tout le projet, inscriptions et récupérations confondues. Attends avant une nouvelle demande.':'Trop de demandes. Attends avant de réessayer.',code:hourly?'email_project_rate_limit':'auth_rate_limit',retryAfterSeconds:wait,retryDelayEstimated:seconds===null},429);if(seconds)result.headers.set('Retry-After',String(seconds));return result;}if(d.code==='email_address_not_authorized')return json({error:'Le service e-mail de test est limité aux adresses autorisées du projet. Aucun service payant n’a été activé.',code:'email_delivery_restricted'},503);return null;}
 function b64(bytes){return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
 async function challenge(){const verifier=b64(crypto.getRandomValues(new Uint8Array(32)));const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier));return{verifier,challenge:b64(new Uint8Array(hash))};}
 function validSnapshot(d){return d&&typeof d==='object'&&!Array.isArray(d)&&[1,2,3].includes(d.version)&&Array.isArray(d.mesures)&&Array.isArray(d.journal)&&(d.injections===undefined||Array.isArray(d.injections))&&d.profil&&typeof d.profil==='object'&&!Array.isArray(d.profil);}
@@ -130,11 +137,13 @@ export async function cloudRoute(request,env){
   }
   if((p==='/api/auth/signup'||p==='/api/auth/recover')&&request.method==='POST'){
    const d=await body(request);if(!email(d.email)||p.endsWith('signup')&&!password(d.password))return json({error:'Adresse e-mail valide et mot de passe d’au moins 12 caractères requis.'},400);
-   const recover=p.endsWith('recover'),pk=await challenge(),redirect=`${url.origin}/account/${recover?'reset-password':'callback'}/`;
-   const r=await backend(c,`/auth/v1/${recover?'recover':'signup'}?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:{email:d.email.trim(),...(!recover?{password:d.password}:{}),code_challenge:pk.challenge,code_challenge_method:'s256'}});
-   if(!r.ok){if(recover&&[400,404,422].includes(r.status))return json({ok:true,confirmationRequired:true,recovery:true},200,[cookie(PK,pk.verifier,600),cookie(FLOW,'recovery',600)]);return json({error:r.status===429?'Limite d’envoi atteinte. Réessaie plus tard.':'Le service n’a pas pu traiter la demande. Vérifie sa configuration.'},r.status===429?429:502);}
+   const recover=p.endsWith('recover'),pk=recover?null:await challenge(),redirect=`${publicAppOrigin(env)}/account/${recover?'reset-password':'callback'}/`;
+   // The standard free email template returns a recovery session in the URL fragment.
+   // Unlike PKCE this can be opened on another device; signature + recovery method are verified below.
+   const r=await backend(c,`/auth/v1/${recover?'recover':'signup'}?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:{email:d.email.trim(),...(!recover?{password:d.password,code_challenge:pk.challenge,code_challenge_method:'s256'}:{})}});
+   if(!r.ok){const failure=await mailFailure(r);if(failure)return failure;if(recover&&[400,404,422].includes(r.status))return json({ok:true,confirmationRequired:true,recovery:true});return json({error:'Le service n’a pas pu traiter la demande. Réessaie plus tard.'},502);}
    const data=await r.json();if(!recover&&data.access_token)return json({ok:true,confirmationRequired:false},200,tokens(data));
-   return json({ok:true,confirmationRequired:true,recovery:recover},200,[cookie(PK,pk.verifier,600),cookie(FLOW,recover?"recovery":"signup",600)]);
+   return json({ok:true,confirmationRequired:true,recovery:recover},200,recover?[]:[cookie(PK,pk.verifier,600),cookie(FLOW,'signup',600)]);
   }
   if(p==='/api/auth/exchange'&&request.method==='POST'){
    const d=await body(request),verifier=cookiesOf(request)[PK];if(typeof d.code!=='string'||d.code.length>2048||!verifier)return json({error:'Lien expiré ou ouvert dans un autre navigateur. Relance la demande.'},400);
@@ -144,20 +153,22 @@ export async function cloudRoute(request,env){
    return json({ok:true,recovery:cookiesOf(request)[FLOW]==='recovery'},200,[...tokens(await r.json()),cookie(PK,'',0),cookie(FLOW,'',0)]);
   }
   if(p==='/api/auth/password'&&request.method==='POST'){
-   const d=await body(request,6000);
+   const d=await body(request,12000);
    if(!password(d.password)||d.password!==d.confirmation)return json({error:'Choisis de 12 à 256 caractères et confirme le même mot de passe.'},400);
    const hash=typeof d.token_hash==='string'&&/^[a-zA-Z0-9_-]{20,512}$/.test(d.token_hash);
    const code=typeof d.code==='string'&&d.code.length>0&&d.code.length<=2048;
+   const bearer=typeof d.recovery_access_token==='string'&&d.recovery_access_token.length>0&&d.recovery_access_token.length<=8192;
    const cs=cookiesOf(request);
-   if(Object.keys(d).some(k=>!['password','confirmation','token_hash','code'].includes(k))||hash===code||(!hash&&!(code&&cs[PK]&&cs[FLOW]==='recovery')))return json({error:'Lien de récupération absent ou invalide. Demande un nouveau lien.'},400);
+   if(Object.keys(d).some(k=>!['password','confirmation','token_hash','code','recovery_access_token'].includes(k))||Number(hash)+Number(code)+Number(bearer)!==1)return json({error:'Lien de récupération absent ou invalide. Demande un nouveau lien.'},400);
+   if(code&&(!cs[PK]||cs[FLOW]!=='recovery'))return json({error:'Cet ancien lien est lié au navigateur de la demande initiale. Demande un nouveau lien après le délai d’envoi.'},400);
    // Only Supabase verification grants the authority to reset. Never use the current login cookie.
-   const verified=await backend(c,hash?'/auth/v1/verify':'/auth/v1/token?grant_type=pkce',{method:'POST',body:hash?{token_hash:d.token_hash,type:'recovery'}:{auth_code:d.code,code_verifier:cs[PK]}});
-   if(!verified.ok)return json({error:'Lien invalide, expiré ou déjà utilisé. Demande un nouveau lien.'},400,[cookie(PK,'',0),cookie(FLOW,'',0)]);
-   const session=await verified.json();
+   let session;
+   if(bearer)session={access_token:d.recovery_access_token};else{const verified=await backend(c,hash?'/auth/v1/verify':'/auth/v1/token?grant_type=pkce',{method:'POST',body:hash?{token_hash:d.token_hash,type:'recovery'}:{auth_code:d.code,code_verifier:cs[PK]}});if(!verified.ok)return json({error:'Lien invalide, expiré ou déjà utilisé. Demande un nouveau lien.'},400,[cookie(PK,'',0),cookie(FLOW,'',0)]);session=await verified.json();}
    if(typeof session.access_token!=='string')return json({error:'Le lien n’a pas produit de session valide. Demande un nouveau lien.'},400);
    const check=await backend(c,'/auth/v1/user',{token:session.access_token});
    if(!check.ok)return json({error:'Le lien n’est plus valide. Demande un nouveau lien.'},400);
    const owner=await check.json();if(typeof owner.id!=='string')throw new Error('Identité invalide');
+   if(bearer){if(!isVerifiedRecoveryToken(session.access_token,owner,c))return json({error:'Cette session n’est pas une récupération valide et récente. Demande un nouveau lien.'},400);const active=await backend(c,'/rest/v1/rpc/diabia_session_active',{method:'POST',token:session.access_token,body:{}});if(!active.ok||await active.json()!==true)return json({error:'La session de récupération est expirée ou révoquée.'},400);}
    const r=await backend(c,'/auth/v1/user',{method:'PUT',token:session.access_token,body:{password:d.password}});
    if(!r.ok)return json({error:'Le mot de passe n’a pas été modifié. Choisis un mot de passe différent et demande un nouveau lien.'},400,clear());
    const logout=await backend(c,'/auth/v1/logout?scope=global',{method:'POST',token:session.access_token}).catch(()=>null);

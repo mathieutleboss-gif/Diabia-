@@ -12,7 +12,8 @@ export function recoveryDestination(url:URL):string|null {
 export function readRecoveryLink(url:URL){
  const q=url.searchParams,h=new URLSearchParams(url.hash.slice(1));
  if(q.has('error')||h.has('error'))return {error:'Ce lien est invalide ou expiré. Demande un nouveau lien.'};
- if(h.has('access_token')||q.has('access_token'))return {error:'Ce lien utilise un ancien format. Demande un nouveau lien après la mise à jour du service.'};
+ if(q.has('access_token'))return {error:'Format de lien non sécurisé. Demande un nouveau lien.'};
+ if(h.has('access_token')){if(h.get('type')!=='recovery'||h.getAll('access_token').length!==1||!h.get('access_token')||h.get('access_token')!.length>8192||q.has('code')||q.has('token_hash')||h.has('token_hash'))return {error:'Lien de récupération invalide.'};return {recovery_access_token:h.get('access_token')!};}
  const hash=q.get('token_hash')||h.get('token_hash')||'',code=q.get('code')||'';
  if(hash&&code||q.getAll('code').length>1||q.getAll('token_hash').length+h.getAll('token_hash').length>1)return {error:'Lien ambigu. Demande un nouveau lien.'};
  if(hash&&(q.get('type')||h.get('type'))!=='recovery')return {error:'Ce lien n’est pas un lien de récupération.'};

@@ -1,39 +1,44 @@
-# Réinitialisation du mot de passe
+# Récupération et limites e-mail — diagnostic du 15 novembre 2026
 
-Correction préparée sur la branche `codex/mistral-demo-quotas`, sans fusion ni déploiement.
+## Résultats réels, sans nouvel envoi d'e-mail
 
-## Constats
+- Fournisseur : Supabase Auth via le Worker Sites. L'origine publique vérifiée est `https://diabia-demo.validpika65.chatgpt.site`.
+- Un ancien e-mail contenait `redirect_to=http://localhost:3000`. Le dernier e-mail examiné pointe maintenant vers la bonne page publique `/account/reset-password/` et utilise encore une preuve PKCE. Sa vérification Supabase a renvoyé HTTP 303 : le lien atteint bien le fournisseur, mais sa poursuite dépend du navigateur d'origine. L'erreur locale « absent ou invalide » peut ensuite être renvoyée lorsque les cookies PKCE manquent ; ce n'est pas une preuve que l'e-mail était mal adressé.
+- Les erreurs réelles de récupération puis d'inscription sont HTTP 429, code `over_email_send_rate_limit`, notamment entre 16:46 et 16:48, heure de Paris. Changer d'adresse ne contourne pas cette limite de projet.
+- Service e-mail intégré gratuit : **2 envois par heure pour le projet**, toutes adresses et opérations d'envoi confondues. La documentation indique aussi un délai utilisateur **par défaut de 60 secondes** entre demandes de récupération/confirmation. Ce second réglage privé n'a pas été lu directement.
+- Aucun `Retry-After` n'est présent dans les erreurs observées. L'heure exacte de déblocage n'est pas exposée ; ne pas annoncer une minute garantie à partir du dernier e-mail. Attendre une heure sans nouvelle tentative est une précaution, pas une lecture du compteur serveur.
+- Lecture réelle de `/auth/v1/settings` : fournisseur email activé, inscriptions autorisées, `mailer_autoconfirm=false` : la confirmation email reste requise. Aucun réglage fournisseur modifié, aucun abonnement ni nouvel e-mail de test.
+- Le service e-mail intégré peut également limiter les destinataires aux adresses autorisées de l'organisation. C'est une restriction distincte du quota ; l'application affiche une erreur de livraison si le fournisseur la signale.
 
-L'authentification déployée est servie par le Worker Sites, avec Supabase Auth et cookies HttpOnly. Le serveur Next standard ne fournit pas les routes Auth du Worker. Le callback précédent ne lisait que `?code=`, et reconnaissait une récupération via un cookie de dix minutes. Il ignorait erreurs fournisseur, fragments et hashes OTP. Un retour hors callback était pris en charge par l'écran de connexion avant de traiter les paramètres. Le dernier e-mail de récupération examiné contient bien un lien Supabase de type recovery avec redirect_to vers `/account/callback/` : le template de ce message n'est pas un simple lien vers SiteURL. La cause précise d'un retour initial à la racine reste non confirmée sans les réglages Auth privés ni trace de navigation : l'autorisation de la redirection reste à vérifier.
+Sources : [limites Supabase](https://supabase.com/docs/guides/auth/rate-limits), [service e-mail intégré](https://supabase.com/docs/guides/auth/auth-smtp), [champs JWT et méthodes de récupération](https://supabase.com/docs/guides/auth/jwt-fields).
 
-## Correction
+## Correction préparée, non déployée
 
-Page publique `/account/reset-password/`, confirmation du mot de passe, vérification de la preuve par Supabase au moment de l'enregistrement. Une session ordinaire ne suffit plus à appeler le point de réinitialisation. Le compte provient exclusivement de la session retournée par la vérification `type: recovery` ou de l'échange PKCE lié à la demande initiale. Aucun identifiant cible n'est accepté. La session de récupération ne devient pas une session de navigation ; après succès les sessions du compte récupéré sont révoquées et les cookies locaux effacés. Un échec de fermeture des sessions est signalé sans masquer le succès de l'enregistrement.
+Les nouvelles demandes de récupération utilisent le lien de récupération standard Supabase, sans PKCE. Le modèle d'e-mail gratuit peut ainsi rester inchangé. Après vérification du lien par Supabase, le navigateur reçoit une session dans le **fragment** de l'URL (`#...&type=recovery`). Cela permet d'ouvrir un nouveau lien sur un autre appareil sans demander de modifier le modèle, de payer Pro ou d'ajouter SMTP. L'inscription conserve PKCE et sa confirmation email.
 
-Le format token_hash recommandé ci-dessous fonctionne également dans un autre navigateur. Le PKCE historique reste lié au navigateur initial et au cookie valable dix minutes. Les anciens liens implicites contenant access_token ne sont pas acceptés : demander un nouveau lien. Une erreur après consommation de la preuve nécessite également un nouveau lien. Les preuves restent uniquement en mémoire et dans les requêtes de vérification, sans localStorage, logs applicatifs ou outil d'analyse. Le fragment recommandé évite de placer la preuve dans la requête HTTP d'ouverture de page.
+Le fragment est lu en mémoire puis retiré de l'URL. Le refresh token éventuel n'est pas conservé. L'access token de récupération est uniquement transmis par POST au serveur pour le changement, jamais dans une query string, localStorage, cookie de navigation ordinaire ou journal applicatif. La page utilise no-referrer et n'a pas d'analyseur tiers.
 
-## Réglages externes à vérifier après autorisation de publication
+Le serveur valide le jeton auprès de Supabase `/user` **avant de lire et faire confiance aux claims** ; il exige l'adresse email confirmée, le sujet identifié, l'émetteur du projet, une expiration future, une méthode AMR `recovery` ou `otp` datant d'au plus une heure et une session active. Le [code officiel de Supabase verifyGet](https://github.com/supabase/auth/blob/master/internal/api/verify.go) émet ses sessions implicites de récupération avec la méthode `OTP` : exiger exclusivement `recovery` casserait ce format. L'autorité acceptée est une authentification email récente vérifiée par le fournisseur ; un jeton OTP valide du même compte (par exemple une connexion par lien email) satisfait aussi cette preuve. Un simple champ navigateur `type=recovery`, une adresse non confirmée ou une session password-only ne suffit pas. La nouvelle valeur doit faire de 12 à 256 caractères et correspondre à la confirmation. Le fournisseur modifie exclusivement le compte du jeton. Après succès, déconnexion globale et effacement des cookies locaux ; un échec de révocation est signalé distinctement.
 
-Dans [Supabase → Authentication → URL Configuration](https://supabase.com/dashboard/project/wavyfrzhsxeltflpkufh/auth/url-configuration) :
+Les anciens codes PKCE et les modèles personnalisés token_hash restent acceptés selon leurs validations précédentes. Les codes PKCE restent liés au navigateur initial : un ancien e-mail ne se transforme pas en lien multi-appareil après la publication.
+
+Les erreurs 429 distinguent quota e-mail de projet et délai court. Si un Retry-After réel est fourni, il est propagé. Sinon, la réponse indique explicitement une attente **estimée** de 3600 secondes pour le quota email ou de 60 secondes pour une autre limitation. Aucun compte à rebours inventé n'est présenté comme une heure garantie de réouverture. Le formulaire applique une pause partagée entre inscription et récupération sur le navigateur, conservée entre rechargements via un timestamp seul, sans adresse ni preuve. Les connexions restent possibles et aucun retry automatique n'est effectué. Cette pause locale ne remplace pas le quota du fournisseur.
+
+## Configuration
+
+Le code fixe l'origine publique avec `DIABIA_PUBLIC_APP_URL` et refuse localhost/URL mal formée. Cela ne contourne pas une mauvaise configuration fournisseur. Dans [Supabase → URL Configuration](https://supabase.com/dashboard/project/wavyfrzhsxeltflpkufh/auth/url-configuration), conserver :
 
 - Site URL : `https://diabia-demo.validpika65.chatgpt.site`
-- Redirect URLs : conserver `https://diabia-demo.validpika65.chatgpt.site/account/callback/`
-- Ajouter exactement `https://diabia-demo.validpika65.chatgpt.site/account/reset-password/`
+- Redirect URLs : `https://diabia-demo.validpika65.chatgpt.site/account/reset-password/` et `https://diabia-demo.validpika65.chatgpt.site/account/callback/`
 
-Dans Authentication → Email Templates → Reset Password (selon le tableau de bord, sous Notifications/Email), remplacer uniquement le lien de réinitialisation par :
+Le dernier e-mail confirme que la destination reset-password publique est désormais utilisée. Il n'est plus nécessaire d'éditer le modèle standard pour la nouvelle récupération. Aucun service payant, custom SMTP ou contournement de confirmation email n'est activé dans cette correction. Le plafond intégré ne peut pas être relevé uniquement par le code applicatif.
 
-```html
-<a href="https://diabia-demo.validpika65.chatgpt.site/account/reset-password/#token_hash={{ .TokenHash }}&amp;type=recovery">Créer un nouveau mot de passe</a>
-```
+## Vérification après publication autorisée
 
-Ne pas remplacer les autres templates et ne pas utiliser un simple lien vers SiteURL. Ne faire ce changement qu'une fois la nouvelle page et l'API publiées ensemble. Les réglages privés ne sont pas accessibles via les outils de configuration disponibles ; ils n'ont pas été modifiés. Les clés administratives ne sont pas nécessaires pour cette correction.
+1. Attendre la fin de la limitation sans multiplier les demandes ; demander **un seul nouvel e-mail** après publication. Les anciens liens restent de l'ancien format.
+2. Ouvrir ce nouvel e-mail dans Safari/iPhone, y compris si la demande a été faite sur un autre appareil. Le formulaire Nouveau mot de passe doit afficher deux champs.
+3. Essayer des mots de passe différents : aucune modification ; puis enregistrer deux valeurs identiques. Vérifier reconnexion avec le nouveau et refus de l'ancien.
+4. Réutiliser le lien, essayer sans preuve, une preuve expirée et une session ordinaire : refus. Le lien de vérification email est à usage unique ; un scanner d'e-mail peut le consommer avant ouverture, auquel cas il faut un nouveau lien après le délai.
+5. Vérifier que la connexion reste possible pendant une pause des envois ; inscription et récupération doivent partager la pause locale. Tester changement d'onglet et rechargement.
 
-## Recette après publication
-
-1. Utiliser un compte de test, demander un nouveau lien, ouvrir l'e-mail et vérifier le titre Nouveau mot de passe et les deux champs.
-2. Essayer des mots de passe différents : aucun changement. Puis enregistrer un nouveau mot de passe de 12 caractères minimum.
-3. Se reconnecter avec le nouveau mot de passe ; vérifier que l'ancien échoue. Réouvrir le même lien : échec clair, proposition d'un nouveau lien.
-4. Avec le template token_hash, ouvrir un nouveau lien dans une fenêtre privée : le compte du lien seul doit être concerné, même si un autre compte est ouvert ailleurs.
-5. Essayer un lien expiré et une ouverture sans preuve : aucun changement possible.
-
-Tests automatisés : routes Worker avec Supabase simulé et fonctions URL/protection de routes. Aucun véritable e-mail ni essai visuel sur appareils n'a été effectué dans ce chantier ; ces vérifications restent à réaliser après publication autorisée. Sources : [Supabase mots de passe](https://supabase.com/docs/guides/auth/passwords), [templates](https://supabase.com/docs/guides/auth/auth-email-templates), [URLs](https://supabase.com/docs/guides/auth/redirect-urls).
+Tests automatisés : fournisseur simulé, signature refusée par Auth, claims non-recovery, expiration, mauvais sujet/émetteur, session révoquée, récupération sans cookies, ancien PKCE, token_hash, quotas et délai réel/estimé. Pas de test sur iPhone/Safari réel ni de nouvel e-mail envoyé pendant le diagnostic. La validation de bout en bout sur le service réel reste à faire après publication autorisée et déblocage des envois.
