@@ -3,13 +3,13 @@ import {useEffect,useRef,useState} from 'react';
 import {readRecoveryLink} from '../../lib/auth/recovery';
 import {fieldClassName,primaryButtonClassName} from './PageShell';
 export default function RecoveryForm({recovery=false}:{recovery?:boolean}){
- const started=useRef(false);const [proof,setProof]=useState<{code?:string;token_hash?:string}>({});
+ const started=useRef(false);const [proof,setProof]=useState<{code?:string;token_hash?:string;recovery_access_token?:string}>({});
  const [state,setState]=useState<'checking'|'password'|'done'|'invalid'>('checking');
  const [password,setPassword]=useState(''),[confirmation,setConfirmation]=useState(''),[error,setError]=useState(''),[warning,setWarning]=useState(''),[loading,setLoading]=useState(false);
  useEffect(()=>{if(started.current)return;started.current=true;const url=new URL(window.location.href),link=readRecoveryLink(url);window.history.replaceState({},'',url.pathname);
   if(link.error){setError(link.error);setState('invalid');return;}
-  const p={...(link.code?{code:link.code}:{}),...(link.token_hash?{token_hash:link.token_hash}:{})};setProof(p);
-  if(recovery||link.token_hash){setState('password');return;}
+  const p={...(link.code?{code:link.code}:{}),...(link.token_hash?{token_hash:link.token_hash}:{}),...(link.recovery_access_token?{recovery_access_token:link.recovery_access_token}:{})};setProof(p);
+  if(recovery||link.token_hash||link.recovery_access_token){setState('password');return;}
   fetch('/api/auth/exchange',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),signal:AbortSignal.timeout(20000)}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error();setState(d.recovery?'password':'done');}).catch(()=>{setError('Lien invalide, expiré ou ouvert dans un autre navigateur. Demande un nouveau lien.');setState('invalid');});
  },[recovery]);
  async function submit(e:React.FormEvent){e.preventDefault();setError('');if(password!==confirmation){setError('Les mots de passe ne correspondent pas.');return;}if(password.length<12||password.length>256){setError('Choisis un mot de passe de 12 à 256 caractères.');return;}setLoading(true);try{const r=await fetch('/api/auth/password',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...proof,password,confirmation}),signal:AbortSignal.timeout(30000)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Réinitialisation impossible. Demande un nouveau lien.');setProof({});setPassword('');setConfirmation('');setWarning(d.warning||'');setState('done');}catch(e){setError(e instanceof Error?e.message:'Réinitialisation impossible. Demande un nouveau lien.');}finally{setLoading(false);}}
