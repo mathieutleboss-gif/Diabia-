@@ -29,7 +29,7 @@ with zipfile.ZipFile(source) as z:
         raw = c.get('Q', '-').strip()
         value = float(raw.replace(',', '.')) if re.fullmatch(r'\d+(?:[.,]\d+)?', raw) else None
         assert value is None or 0 <= value <= 100
-        foods.append({'id': c['G'], 'nom': c['H'].replace('\n', ' '), 'glucidesPour100g': value, 'valeurSource': raw})
+        foods.append({'id': c['G'], 'nom': c['H'].replace('\n', ' '), 'glucidesPour100g': value, 'valeurSource': raw, 'groupe': c.get('D', '').replace('\n', ' '), 'categorie': c.get('E', '').replace('\n', ' ')})
 assert len(foods) == 3484 and len({f['id'] for f in foods}) == len(foods)
 output = pathlib.Path('lib/nutrition/ciqual-2025.json')
 output.write_text(json.dumps({'source': 'ANSES — Table Ciqual 2025', 'url': 'https://doi.org/10.57745/RDMHWY', 'license': 'Licence Ouverte / Etalab 2.0', 'fileUrl': 'https://entrepot.recherche.data.gouv.fr/api/access/datafile/666260', 'fileSha256': hashlib.sha256(source.read_bytes()).hexdigest(), 'column': 'Glucides (g/100 g)', 'foods': foods}, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
