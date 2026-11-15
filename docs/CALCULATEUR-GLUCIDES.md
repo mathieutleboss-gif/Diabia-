@@ -18,7 +18,7 @@ Avant une intégration ultérieure : vérifier [documentation et limites API](ht
 
 Recherche locale normalisée sans accents, suggestions jusqu'à 30 résultats, libellés originaux incluant préparation, sélection explicite. Les badges cru/cuit sont extraits du libellé, sans transformer les valeurs d'un aliment en celles d'un autre. Le nom complet fait foi, notamment pour les recettes et préparations.
 
-Poids en grammes, supérieur à zéro et au maximum 2000 g (limite de saisie du produit, pas une recommandation alimentaire), décimales point ou virgule acceptées. Formule `glucidesPour100g × poids / 100`, résultat arrondi à deux décimales, actualisé sans réseau ni enregistrement de la sélection. Les valeurs sont indicatives ; aucune dose d'insuline ni traitement n'est calculé. Aucune photo, IA ou transmission de recherche à une API externe.
+Poids en grammes, supérieur à zéro et au maximum 2000 g par aliment (limite de saisie du produit, pas une recommandation alimentaire), décimales point ou virgule acceptées. Formule `glucidesPour100g × poids / 100`, total arrondi à deux décimales après addition, actualisé sans réseau. Favoris et récents persistent localement par compte (identifiants d'aliments uniquement) ; les portions et le récapitulatif restent temporaires. Les valeurs sont indicatives ; aucune dose d'insuline ni traitement n'est calculé. Photographies illustratives validées, aucune analyse photo, IA ou transmission de recherche à une API externe. Voir `CALCULATEUR-INTERFACE.md` pour la version modernisée.
 
 ## Vérification
 

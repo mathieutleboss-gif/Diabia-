@@ -1,4 +1,4 @@
-export type Food = { id:string; nom:string; glucidesPour100g:number|null; source:string; barcode?:string; sourceUrl?:string; etat?:string; valeurSource?:string };
+export type Food = { id:string; nom:string; glucidesPour100g:number|null; source:string; barcode?:string; sourceUrl?:string; etat?:string; valeurSource?:string; groupe?:string; categorie?:string };
 export interface FoodSource { readonly status:'simulation'|'configuration-requise'|'disponible'; rechercher(query:string):Promise<Food[]>; barcode(code:string):Promise<Food|null> }
 const fictifs:Food[]=[{id:'exemple',nom:'Produit fictif',glucidesPour100g:20,source:'Données fictives',barcode:'0000000000000'}];
 export const demoFood:FoodSource={status:'simulation',async rechercher(q){return q.trim()?fictifs.filter(f=>f.nom.toLowerCase().includes(q.trim().toLowerCase())):[];},async barcode(c){return fictifs.find(f=>f.barcode===c)??null;}};
