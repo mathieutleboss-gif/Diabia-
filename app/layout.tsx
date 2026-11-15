@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SessionProvider from "./components/SessionProvider";
-import Footer from "./components/Footer";
-import Header from "./components/Header";
-import DemoBanner from "./components/DemoBanner";
-import StorageMigration from "./components/StorageMigration";
+import ApplicationFrame from './components/ApplicationFrame';
 
 export const metadata: Metadata = {
   title: { default: "Diabia — Comprendre sa glycémie", template: "%s · Diabia" },
@@ -21,13 +18,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <a href="#contenu-principal" className="sr-only z-[200] rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Aller au contenu principal</a>
         <SessionProvider>
-        <Header />
-        <div className="app-content flex min-w-0 flex-1 flex-col">
-        <StorageMigration />
-        <DemoBanner />
-        {children}
-        <Footer />
-        </div>
+        <ApplicationFrame>{children}</ApplicationFrame>
         </SessionProvider>
       </body>
     </html>
