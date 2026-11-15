@@ -4,23 +4,26 @@ import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { analyserGlycemie } from "../../lib/analyse";
 import type {
+  InjectionInsuline,
   JournalEntry,
   Mesure,
   ProfilDiabia,
 } from "../../lib/analyses/types";
 import DashboardHeader from "./components/DashboardHeader";
+import InsulinPanel from "./components/InsulinPanel";
 import GlucoseChart from "./components/GlucoseChart";
 import InsightsPanel from "./components/InsightsPanel";
 import JournalProfile from "./components/JournalProfile";
 import MetricCards from "./components/MetricCards";
 import ScoreCard from "./components/ScoreCard";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
-import { normaliserJournal, normaliserMesures, normaliserProfil } from "../../lib/validation";
+import { normaliserInjections, normaliserJournal, normaliserMesures, normaliserProfil } from "../../lib/validation";
 import { lireValeurLocale } from "../../lib/storage";
 import { obtenirTimestamp } from "../../lib/dates";
 import { ROUTES } from "../../lib/routes";
 
 const SERVER_SNAPSHOT = JSON.stringify({
+  injections: "[]",
   mesures: "[]",
   profil: "{}",
   journal: "[]",
@@ -37,6 +40,7 @@ function subscribeToStorage(callback: () => void) {
 
 function readStorageSnapshot() {
   return JSON.stringify({
+    injections: lireValeurLocale(STORAGE_KEYS.injections, "[]"),
     mesures: lireValeurLocale(STORAGE_KEYS.mesures, "[]"),
     profil: lireValeurLocale(STORAGE_KEYS.profil, "{}"),
     journal: lireValeurLocale(STORAGE_KEYS.journal, "[]"),
@@ -56,18 +60,21 @@ function parseJson(value: string, fallback: unknown) {
 }
 
 function parseDashboardData(snapshot: string): {
+  injections: InjectionInsuline[];
   mesures: Mesure[];
   profil: ProfilDiabia;
   journal: JournalEntry[];
 } {
   const raw = parseJson(snapshot, {}) as Partial<
-    Record<"mesures" | "profil" | "journal", string>
+    Record<"mesures" | "profil" | "journal" | "injections", string>
   >;
+  const injections = normaliserInjections(parseJson(raw.injections || "[]", []));
   const mesures = normaliserMesures(parseJson(raw.mesures || "[]", []));
   const profil = normaliserProfil(parseJson(raw.profil || "{}", {}));
   const journal = normaliserJournal(parseJson(raw.journal || "[]", []));
 
   return {
+    injections,
     mesures,
     profil,
     journal,
@@ -82,7 +89,7 @@ export default function Dashboard() {
     readStorageSnapshot,
     getServerSnapshot
   );
-  const { mesures, profil, journal } = useMemo(
+  const { mesures, injections, profil, journal } = useMemo(
     () => parseDashboardData(snapshot),
     [snapshot]
   );
@@ -94,6 +101,7 @@ export default function Dashboard() {
       return timestamp !== null && timestamp >= limite;
     });
   }, [mesures, periode, referenceTemporelle]);
+  const injectionsAnalysees = useMemo(() => periode === "all" ? injections : injections.filter(i => {const t=obtenirTimestamp(i);return t!==null&&t>=referenceTemporelle-Number(periode)*86400000;}),[injections,periode,referenceTemporelle]);
   const analyse = useMemo(
     () => analyserGlycemie(mesuresAnalysees, journal),
     [mesuresAnalysees, journal]
@@ -132,11 +140,15 @@ export default function Dashboard() {
               <GlucoseChart mesures={mesuresAnalysees} />
             </section>
 
+
             <MetricCards cible={analyse.cible} hyper={analyse.hyper} hypo={analyse.hypo} variations={analyse.variations.nombre} hasData={hasData} />
 
         <InsightsPanel analyse={analyse} hasData={hasData} />
           </>
         )}
+
+        {!hasData && injections.length > 0 && <label className="self-start text-sm font-semibold text-slate-700">Période des injections<select className="ml-3 rounded-xl border border-slate-200 bg-white p-3" value={periode} onChange={e=>setPeriode(e.target.value)}><option value="all">Tout l’historique</option><option value="7">7 jours</option><option value="14">14 jours</option><option value="30">30 jours</option></select></label>}
+        <InsulinPanel mesures={mesuresAnalysees} independantes={injectionsAnalysees} />
 
         <JournalProfile journal={journal} profil={profil} />
 

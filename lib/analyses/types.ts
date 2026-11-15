@@ -1,3 +1,14 @@
+export type InjectionInsuline = {
+  id: string;
+  dose: number;
+  date: string;
+  heure?: string;
+  timestamp: string;
+  type?: "non_precise" | "rapide" | "basale";
+  source?: "csv" | "manuel";
+  note?: string;
+};
+
 export type Mesure = {
   id?: string;
   glycemie: number | string;
@@ -131,6 +142,7 @@ export type CorrelationJournal = {
   description: string;
   nombreEvenements: number;
   evenementsExploitables: number;
+  joursCouverts: number;
   differenceMoyenne: number | null;
   conclusion: string;
   preuves: string[];

@@ -77,7 +77,7 @@ export default function InsightsPanel({ analyse, hasData }: InsightsPanelProps) 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Analyse Diabia</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Ce que tes données racontent</h2>
-          <p className="mt-1 text-sm text-slate-500">Observations automatiques, informatives et non médicales.</p>
+          <p className="mt-1 text-sm text-slate-500">Observations automatiques expérimentales, non validées cliniquement. Une association ne prouve pas une cause ; le niveau de confiance décrit les données disponibles, pas une certitude médicale.</p>
         </div>
         <Link href={ROUTES.assistant} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-700">
           Demander à Diabia <span aria-hidden>→</span>

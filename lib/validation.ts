@@ -1,4 +1,4 @@
-import type { JournalEntry, Mesure, ProfilDiabia } from "./analyses/types";
+import type { InjectionInsuline, JournalEntry, Mesure, ProfilDiabia } from "./analyses/types";
 import { estUniteGlycemie } from "./glucoseUnits";
 
 function estObjet(value: unknown): value is Record<string, unknown> {
@@ -57,4 +57,12 @@ export function normaliserProfil(value: unknown): ProfilDiabia {
     objectif: chaineOptionnelle(value.objectif),
     uniteGlycemie: estUniteGlycemie(value.uniteGlycemie) ? value.uniteGlycemie : undefined,
   };
+}
+
+export function normaliserInjections(value: unknown): InjectionInsuline[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(row => {
+    if (!estObjet(row) || typeof row.id !== "string" || typeof row.dose !== "number" || !Number.isFinite(row.dose) || row.dose < 0 || row.dose > 500 || typeof row.timestamp !== "string" || typeof row.date !== "string") return [];
+    return [{id:row.id,dose:row.dose,date:row.date,timestamp:row.timestamp,heure:chaineOptionnelle(row.heure),note:chaineOptionnelle(row.note),type:row.type === "rapide" || row.type === "basale" ? row.type : "non_precise",source:row.source === "csv" ? "csv" : "manuel"}];
+  });
 }

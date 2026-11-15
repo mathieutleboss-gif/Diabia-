@@ -1,0 +1,4 @@
+import Link from "next/link";
+export default function Footer() {
+  return <footer className="mt-auto border-t border-slate-200/80 bg-white px-5 py-6"><div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs leading-6 text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div><span className="font-semibold text-slate-800">Diabia</span> · Version de test<p>Stockage dans ce navigateur. Pense à exporter une sauvegarde.</p></div><nav aria-label="Informations et aide" className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/help/" className="font-medium hover:text-blue-700">Guide d’utilisation</Link><Link href="/privacy/" className="font-medium hover:text-blue-700">Données et confidentialité</Link><Link href="/profile/#donnees" className="font-medium hover:text-blue-700">Mes sauvegardes</Link></nav></div></footer>;
+}

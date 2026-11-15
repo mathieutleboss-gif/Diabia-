@@ -19,9 +19,9 @@ export function analyserTendance(mesures: Mesure[]) {
 
   let message = "La tendance glycémique reste globalement stable sur la période.";
   if (difference > 20) {
-    message = `La glycémie moyenne augmente sur la période (+${difference} mg/dL). Diabia détecte une dégradation récente.`;
+    message = `La glycémie moyenne augmente sur la période (+${difference} mg/dL). Une hausse de moyenne ne suffit pas à conclure sur l’évolution du suivi.`;
   } else if (difference < -20) {
-    message = `La glycémie moyenne diminue sur la période (${difference} mg/dL). Diabia détecte une amélioration récente.`;
+    message = `La glycémie moyenne diminue sur la période (${difference} mg/dL). Une baisse de moyenne ne suffit pas à conclure à une amélioration.`;
   }
 
   return { moyenneDebut, moyenneFin, difference, message };

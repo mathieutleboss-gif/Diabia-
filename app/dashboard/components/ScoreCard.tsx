@@ -8,12 +8,6 @@ type ScoreCardProps = {
   confiance: "faible" | "modéré" | "élevé";
 };
 
-function scoreLabel(score: number) {
-  if (score >= 85) return "Très bon équilibre";
-  if (score >= 70) return "Équilibre encourageant";
-  if (score >= 50) return "Marge de progression";
-  return "Points d’attention";
-}
 
 export default function ScoreCard({
   score,
@@ -41,11 +35,11 @@ export default function ScoreCard({
               Score Diabia
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Synthèse de la période analysée
+              Indicateur interne, sans validation clinique
             </p>
           </div>
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            Non médical
+            Expérimental
           </span>
         </div>
 
@@ -68,12 +62,12 @@ export default function ScoreCard({
 
           <div className="w-full">
             <p className="text-lg font-semibold text-slate-900">
-              {!hasData ? "Ajoute des données pour commencer" : interpretable ? scoreLabel(scoreAffiche) : "Score en attente de données suffisantes"}
+              {!hasData ? "Ajoute des données pour commencer" : interpretable ? "Indicateur calculé sur la période" : "Score en attente de données suffisantes"}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               {interpretable
                 ? "Ce score combine la proportion de mesures dans la cible, les mesures hors cible et les écarts consécutifs importants."
-                : hasData ? nombreMesures < 5 ? `Encore ${5 - nombreMesures} mesure${5 - nombreMesures > 1 ? "s" : ""} nécessaire${5 - nombreMesures > 1 ? "s" : ""} avant d’afficher le score.` : "Répartis les mesures sur au moins trois jours pour rendre le score interprétable." : "Le score sera affiché après l’enregistrement d’au moins cinq mesures."}
+                : hasData ? nombreMesures < 5 ? `Encore ${5 - nombreMesures} mesure${5 - nombreMesures > 1 ? "s" : ""} nécessaire${5 - nombreMesures > 1 ? "s" : ""} avant d’afficher le score.` : "Répartis les mesures sur au moins trois jours pour afficher cet indicateur." : "Le score sera affiché après l’enregistrement d’au moins cinq mesures."}
             </p>
 
             <dl className="mt-5 grid grid-cols-3 gap-2">

@@ -1,0 +1,5 @@
+Horodatage;Glucose (mg/dL);Insulin (U);Long-Acting Insulin (units);Notes
+04/08/2026 08:00;120;;;Exemple fictif de glycémie
+04/08/2026 08:05;;2,5;;Dose fictive sans glycémie au même instant
+04/08/2026 20:00;;;12;Dose basale fictive
+04/08/2026 20:05;140;0;;Zéro explicite dans le fichier fictif

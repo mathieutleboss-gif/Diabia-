@@ -24,7 +24,7 @@ export function expliquerScore(analyse: AnalyseBase, score: number | null) {
   }
 
   if (analyse.cible >= 80) {
-    positif.push(`Très bonne stabilité : ${analyse.cible}% des mesures sont dans la cible.`);
+    positif.push(`${analyse.cible}% des mesures sont dans la zone de référence. Ce pourcentage ne mesure pas à lui seul la stabilité.`);
   } else if (analyse.cible >= 50) {
     positif.push(
       `${analyse.cible}% des mesures sont dans la cible sur l’échantillon disponible.`
@@ -40,7 +40,7 @@ export function expliquerScore(analyse: AnalyseBase, score: number | null) {
   }
 
   if (analyse.cible < 70) {
-    problemes.push("Le temps passé dans la zone idéale est encore limité.");
+    problemes.push("Moins de 70% des mesures sont dans la zone de référence ; ce pourcentage ne représente pas un temps passé dans cette zone.");
   }
   if (analyse.hyper > 20) {
     problemes.push(`${analyse.hyper}% des mesures sont au-dessus de la cible.`);

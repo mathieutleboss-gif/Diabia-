@@ -1,0 +1,12 @@
+import { test } from 'node:test';
+import { strict as assert } from 'node:assert';
+import { normaliser, fusionner, providers, simulation, type RawEvent } from '../lib/connectors/core';
+import { selectionnerIA } from '../lib/ia/providers';
+import { demoFood, glucides } from '../lib/nutrition/core';
+const event:RawEvent={source:'fictif',externalId:'1',instant:'2026-02-28T12:00:00+01:00',timezone:'Europe/Paris',kind:'glucose',value:10,unit:'mmol/L'};
+test('normalisation, fuseau, conversion et synchronisation idempotente',()=>{const a=normaliser(event);assert.equal(a.value,180.2);assert.equal(a.instant,'2026-02-28T11:00:00.000Z');assert.deepEqual(fusionner([a],[a]),[a]);assert.throws(()=>fusionner([a],[{...a,value:200}]));});
+test('les données invalides ne sont pas importées',()=>{for(const e of [{...event,instant:'2026-02-30T12:00:00Z'},{...event,instant:'2026-02-28T12:00:00'},{...event,timezone:'faux'},{...event,value:-1},{...event,kind:'basal' as const,unit:'U' as const}])assert.throws(()=>normaliser(e));});
+test('bolus, basal et repas conservent leurs unités et les heures répétées restent distinctes',()=>{for(const [kind,unit] of [['bolus','U'],['basal','U/h'],['repas','g']] as const)assert.equal(normaliser({...event,kind,unit,value:2}).unit,unit);const first=normaliser({...event,instant:'2026-10-25T02:30:00+02:00'});const second=normaliser({...event,instant:'2026-10-25T02:30:00+01:00'});assert.notEqual(first.instant,second.instant);});
+test('seules des données fictives sont fournies par le connecteur de simulation',async()=>{assert.equal(providers.length,15);assert.equal(simulation.status,'simulation');assert.equal((await simulation.lire())[0].source,'simulation');});
+test('les fournisseurs externes sont bloqués',async()=>{await assert.rejects(()=>selectionnerIA('anthropic').answer({type:'question',text:'test'}));assert.match(await selectionnerIA('simulation').answer({type:'glucides',text:'repas'}),/aucune estimation/);});
+test('nutrition fictive : portions, données absentes et code',async()=>{const f=await demoFood.barcode('0000000000000');assert.ok(f);assert.equal(glucides(f,150),30);assert.equal(glucides({...f,glucidesPour100g:null},100),null);assert.equal(glucides(f,-1),null);assert.equal(await demoFood.barcode('inconnu'),null);});

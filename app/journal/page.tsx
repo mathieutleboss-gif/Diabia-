@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { obtenirTimestamp } from "../../lib/dates";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import type { JournalEntry } from "../../lib/analyses/types";
-import { LIMITES_SAISIE, validerHorodatage } from "../../lib/saisie";
+import { dateVersChamp, LIMITES_SAISIE, validerHorodatage } from "../../lib/saisie";
 import { lireJournalLocal, lireValeurLocale, sauvegarderLocal } from "../../lib/storage";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { normaliserJournal } from "../../lib/validation";
@@ -23,7 +25,7 @@ export default function Journal() {
     () => "[]"
   );
   const entrees = useMemo(() => {
-    try { return normaliserJournal(JSON.parse(snapshot)).reverse(); }
+    try { return normaliserJournal(JSON.parse(snapshot)).sort((a,b) => (obtenirTimestamp(b) ?? -Infinity) - (obtenirTimestamp(a) ?? -Infinity)); }
     catch { return []; }
   }, [snapshot]);
   const [editionId, setEditionId] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export default function Journal() {
 
   function modifier(entree: JournalEntry) {
     setEditionId(entree.id || null); setType(entree.type || "Repas"); setDescription(entree.description || ""); setHeure(entree.heure || initial.heure);
-    if (entree.timestamp) { const d = new Date(entree.timestamp); const offset = d.getTimezoneOffset() * 60_000; setDate(new Date(d.getTime() - offset).toISOString().slice(0, 10)); }
+    setDate(dateVersChamp(entree.date, entree.timestamp));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -74,6 +76,7 @@ export default function Journal() {
             <FormField label="Date" hint="obligatoire"><input required type="date" className={fieldClassName} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
             <FormField label="Heure" hint="obligatoire"><input required type="time" className={fieldClassName} value={heure} onChange={(e) => setHeure(e.target.value)} /></FormField>
           </div>
+          {type === "Insuline" && <p className="rounded-2xl bg-violet-50 p-4 text-sm leading-6 text-violet-900">Le journal conserve le contexte. Pour qu’une dose apparaisse dans les totaux d’insuline, renseigne-la dans <Link href="/insulin/" className="font-semibold underline">Mes injections</Link>.</p>}
           <FormField label="Description" hint="obligatoire"><textarea required maxLength={LIMITES_SAISIE.descriptionMax} className={`${fieldClassName} min-h-32 resize-y`} placeholder="Pizza, marche, injection, nuit courte, stress…" value={description} onChange={(e) => setDescription(e.target.value)} /></FormField>
           <div className="flex gap-3"><button type="submit" disabled={!description || !date || !heure} className={primaryButtonClassName}>{editionId ? "Mettre à jour" : "Ajouter au journal"}</button>{editionId && <button type="button" onClick={reinitialiser} className="rounded-2xl px-5 py-3 text-sm font-semibold text-slate-600">Annuler</button>}</div>
           {message && <p role="status" className="text-sm font-medium text-emerald-700">{message}</p>}

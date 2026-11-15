@@ -1,49 +1,17 @@
 "use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { ROUTES } from "../../lib/routes";
-
-const links = [
-  ["Tableau de bord", ROUTES.dashboard],
-  ["Mesures", ROUTES.mesures],
-  ["Importer", ROUTES.import],
-  ["Journal", ROUTES.journal],
-  ["Assistant", ROUTES.assistant],
-  ["Profil", ROUTES.profil],
-];
-
-export default function Header() {
-  const pathname = usePathname();
-  const [menuOuvert, setMenuOuvert] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    function fermer(event: KeyboardEvent | PointerEvent) {
-      if (event instanceof KeyboardEvent && event.key === "Escape") setMenuOuvert(false);
-      if (event instanceof PointerEvent && !headerRef.current?.contains(event.target as Node)) setMenuOuvert(false);
-    }
-    document.addEventListener("keydown", fermer);
-    document.addEventListener("pointerdown", fermer);
-    return () => { document.removeEventListener("keydown", fermer); document.removeEventListener("pointerdown", fermer); };
-  }, []);
-
-  const navigation = (mobile = false) => links.map(([label, href]) => (
-    <Link key={href} href={href} onClick={() => setMenuOuvert(false)} aria-current={pathname === href ? "page" : undefined} className={`${mobile ? "px-4 py-3" : "px-3 py-2"} rounded-xl text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${pathname === href ? "bg-white text-blue-700 shadow-sm" : "text-slate-600 hover:bg-white hover:text-blue-700"}`}>{label}</Link>
-  ));
-
-  return (
-    <header ref={headerRef} className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-5 px-4 py-3 sm:px-6 lg:px-10">
-        <Link href={ROUTES.accueil} className="flex items-center gap-2.5 font-semibold tracking-tight text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
-          <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-sm font-bold text-white shadow-lg shadow-blue-500/20">D</span>
-          <span className="text-xl">Diabia</span>
-        </Link>
-        <nav className="hidden items-center gap-1 rounded-2xl bg-slate-100/80 p-1 md:flex" aria-label="Navigation principale">{navigation()}</nav>
-        <button type="button" aria-expanded={menuOuvert} aria-controls="navigation-mobile" onClick={() => setMenuOuvert(!menuOuvert)} className="grid size-11 place-items-center rounded-2xl bg-slate-100 text-xl text-slate-800 md:hidden"><span className="sr-only">{menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}</span><span aria-hidden="true">{menuOuvert ? "×" : "☰"}</span></button>
-      </div>
-      {menuOuvert && <nav id="navigation-mobile" aria-label="Navigation mobile" className="grid gap-1 border-t border-slate-100 bg-white p-3 md:hidden">{navigation(true)}</nav>}
-    </header>
-  );
+import {usePathname} from "next/navigation";
+import {useEffect,useRef,useState} from "react";
+import {Icon,type IconName} from "./Icons";
+import {useSessionDiabia} from "./SessionProvider";
+const groups=[{name:"MON SUIVI",items:[['Vue d’ensemble','/dashboard','chart'],['Mesures','/measurements','drop'],['Insuline','/insulin','insulin'],['Journal','/journal','journal']]},{name:"EXPLORER",items:[['Importer un fichier','/import','upload'],['Assistant IA','/assistant','spark'],['Analyse IA (simulation)','/ai-analysis','spark'],['Alimentation','/nutrition','journal'],['Connexions','/connections','account'],['Mes données','/data','drop']]},{name:"MON ESPACE",items:[['Mon profil','/profile','user'],['Mon compte','/account','account'],['Guide et aide','/help','help']]}];
+export default function Header(){const raw=usePathname();const path=raw.replace(/\/$/,'')||'/';const {user}=useSessionDiabia();const[open,setOpen]=useState(false);const root=useRef<HTMLElement>(null),trigger=useRef<HTMLButtonElement>(null),menu=useRef<HTMLElement>(null);
+ useEffect(()=>{function close(e:KeyboardEvent|PointerEvent){if(e instanceof KeyboardEvent&&e.key==='Escape'&&open){setOpen(false);trigger.current?.focus();}if(e instanceof PointerEvent&&!root.current?.contains(e.target as Node))setOpen(false);}document.addEventListener('keydown',close);document.addEventListener('pointerdown',close);return()=>{document.removeEventListener('keydown',close);document.removeEventListener('pointerdown',close);};},[open]);
+ useEffect(()=>{if(open)menu.current?.querySelector<HTMLAnchorElement>('a')?.focus();},[open]);
+ const link=(label:string,href:string,icon:string)=> <Link key={href} href={href} onClick={()=>setOpen(false)} aria-current={path===href?'page':undefined} className={`nav-link ${path===href?'nav-link-active':''}`}><Icon name={icon as IconName}/><span>{label}</span>{path===href&&<span className="ml-auto size-1.5 rounded-full bg-blue-600"/>}</Link>;
+ const all=groups.map(group=><div key={group.name} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold tracking-[.14em] text-slate-400">{group.name}</p><div className="space-y-1">{group.items.map(([label,href,icon])=>link(label,href,icon))}</div></div>);
+ return <header ref={root} className="sticky top-0 z-50 border-b border-slate-200/80 bg-white"><div className="flex h-[72px] items-center justify-between gap-3 px-4 sm:px-7"><Link href="/" onClick={()=>setOpen(false)} className="flex shrink-0 items-center gap-2.5 rounded-xl"><span className="grid size-10 place-items-center rounded-[14px] bg-blue-600 text-white shadow-sm shadow-blue-200"><Icon name="drop" className="size-6"/></span><span className="text-[23px] font-bold tracking-[-.06em] text-slate-950">diabia<span className="text-blue-600">.</span></span></Link><p className="hidden text-xs font-medium text-slate-500 md:block xl:mr-auto xl:ml-20">Ton suivi, plus clair. Un jour à la fois.</p><div className="flex items-center gap-2 sm:gap-3"><button ref={trigger} aria-expanded={open} aria-controls="navigation-mobile" onClick={()=>setOpen(v=>!v)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"><Icon name={open?'close':'menu'}/>{open?'Fermer':'Menu'}</button><Link href="/add-measure/" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 sm:px-4 sm:text-sm"><Icon name="plus" className="size-4"/><span>Ajouter<span className="hidden sm:inline"> une mesure</span></span></Link><Link href="/account/" aria-label="Ouvrir mon compte" className="grid size-10 place-items-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">{user?.name?.slice(0,1).toUpperCase()||<Icon name="user"/>}</Link></div></div>
+ <aside className="fixed bottom-0 left-0 top-[72px] hidden w-[232px] flex-col border-r border-slate-200/80 bg-white px-4 py-6 xl:flex"><nav aria-label="Navigation principale" className="overflow-y-auto">{all}</nav><div className="mt-auto rounded-2xl border border-blue-100 bg-blue-50/60 p-4"><Icon name="shield" className="mb-2 size-5 text-blue-600"/><p className="text-xs font-semibold text-slate-800">Ton historique reste ici</p><p className="mt-1 text-[11px] leading-5 text-slate-500">Les données de santé restent sur cet appareil.</p><Link href="/privacy/" className="mt-2 inline-block text-[11px] font-semibold text-blue-700">Données et confidentialité →</Link></div></aside>
+ {open&&<nav ref={menu} id="navigation-mobile" aria-label="Toutes les pages" className="fixed inset-x-0 bottom-[74px] top-[72px] overflow-y-auto border-b border-slate-200 bg-white px-4 py-6 xl:bottom-0 xl:left-auto xl:w-80 xl:border-l">{all}</nav>}
+ <nav aria-label="Navigation rapide" className="mobile-navigation fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pt-2 backdrop-blur-xl xl:hidden">{[['Vue','/dashboard','chart'],['Mesures','/measurements','drop'],['Importer','/import','upload'],['Insuline','/insulin','insulin']].map(([label,href,icon])=><Link key={href} onClick={()=>setOpen(false)} href={href} aria-current={path===href?'page':undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold ${path===href&&!open?'bg-blue-50 text-blue-700':'text-slate-500'}`}><Icon name={icon as IconName}/>{label}</Link>)}<button aria-expanded={open} aria-controls="navigation-mobile" onClick={()=>setOpen(v=>!v)} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold ${open?'bg-blue-50 text-blue-700':'text-slate-500'}`}><Icon name={open?'close':'menu'}/>{open?'Fermer':'Menu'}</button></nav></header>;
 }

@@ -4,7 +4,7 @@ import { ROUTES } from "../lib/routes";
 const features = [
   ["◎", "Analyse claire", "Mesures dans la cible, variations, tendances et score synthétique."],
   ["⌁", "Contexte utile", "Journalise repas, activité et insuline pour enrichir la lecture."],
-  ["✦", "IA maîtrisée", "Interroge l’instance Ollama que tu as configurée pour Diabia."],
+  ["✦", "Assistant", "Découvre l’espace préparé pour l’assistant sur des exemples fictifs."],
 ];
 
 export default function Home() {
@@ -24,7 +24,7 @@ export default function Home() {
           </div>
           <div className="relative rounded-[2.5rem] bg-slate-950 p-6 text-white shadow-[0_40px_100px_-40px_rgba(15,23,42,0.8)] sm:p-8">
             <div className="absolute -right-12 -top-12 size-40 rounded-full bg-blue-500/30 blur-3xl" />
-            <p className="text-sm text-slate-400">Exemple d’aperçu Diabia</p>
+            <p className="text-sm text-slate-400">Exemple fictif · indicateur expérimental</p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <div className="rounded-3xl bg-white/10 p-5"><p className="text-sm text-slate-400">Score Diabia</p><p className="mt-2 text-5xl font-semibold">84</p></div>
               <div className="rounded-3xl bg-emerald-400 p-5 text-slate-950"><p className="text-sm font-medium opacity-70">Dans la cible</p><p className="mt-2 text-5xl font-semibold">78%</p></div>
@@ -33,6 +33,7 @@ export default function Home() {
           </div>
         </section>
         <section className="mt-20 grid gap-4 md:grid-cols-3">{features.map(([icon, title, text]) => <article key={title} className="rounded-[2rem] border border-white/80 bg-white/85 p-6 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.4)] backdrop-blur-xl"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-xl text-blue-700">{icon}</span><h2 className="mt-5 text-xl font-semibold text-slate-900">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></article>)}</section>
+        <div className="mt-8 rounded-3xl border border-blue-100 bg-blue-50/80 p-6 text-sm leading-7 text-blue-950"><strong>Première visite ?</strong> Utilise le bouton de l’exemple fictif pour découvrir les graphiques et les doses d’insuline. <Link href="/help/" className="font-semibold underline">Suivre le guide</Link></div>
         <p className="mt-10 text-center"><Link href={ROUTES.presentation} className="text-sm font-semibold text-blue-700">Découvrir le fonctionnement de Diabia →</Link></p>
       </div>
     </main>

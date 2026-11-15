@@ -1,54 +1,61 @@
 # Diabia
 
-Diabia est une application Next.js locale permettant d’importer et saisir des mesures glycémiques, de consulter des analyses informatives, de tenir un journal et d’interroger un assistant Ollama.
-
-Les analyses et le score Diabia ne constituent pas un dispositif médical et ne remplacent pas l’avis d’un professionnel de santé.
+Application Next.js pour saisir/importer des mesures glycémiques, consulter des analyses informatives et tenir un journal. Les données restent dans le localStorage du navigateur. Les analyses et le score n'ont pas fait l'objet d'une validation clinique ; leur qualification réglementaire dépend de la finalité réelle du produit, pas d'une simple mention « non médical ».
 
 ## Installation
 
-Prérequis : Node.js 20 ou supérieur et npm.
+Node.js 20+ :
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 npm run dev
 ```
 
-L’application est ensuite disponible sur [http://localhost:3000](http://localhost:3000).
+L'adresse `http://localhost:3000` fonctionne sur l'ordinateur qui exécute l'application. Ce dépôt ne contient aucune adresse de production vérifiée.
 
-## Assistant local
+## Assistant Mistral : migration préparée, accès limité à une démonstration
 
-L’assistant nécessite Ollama et utilise par défaut le modèle `llama3.2:3b` :
+Ollama n'est plus nécessaire dans cette version. L'intégration Mistral est un prototype pour tester une offre gratuite disponible au compte. Aucun test réel de qualité, de disponibilité du modèle ni de quota du compte n'a encore été réalisé avec une clé. Le modèle est configurable ; `mistral-small-latest` sert de valeur initiale et doit être vérifié dans le compte.
 
-```bash
-ollama pull llama3.2:3b
-ollama serve
-```
+**Les données de santé réelles sont bloquées.** La route accepte seulement trois identifiants de questions prédéfinies. Le serveur construit des exemples statistiques fictifs sans unité ; aucune question libre, mesure, note, journal ou profil n'est transmis. Le navigateur ne lit pas le stockage personnel sur la page Assistant.
 
-L’adresse et le modèle peuvent être adaptés dans `.env.local` avec `OLLAMA_URL` et `OLLAMA_MODEL`.
+### Plafonds
 
-En local, l’adresse par défaut contacte Ollama sur la même machine que Diabia. En déploiement distant, `localhost` désigne le serveur hébergeant l’application : Ollama doit donc y être installé, ou `OLLAMA_URL` doit pointer vers une instance privée explicitement sécurisée. Le navigateur ne contacte jamais Ollama directement ; seul le rapport nécessaire à la question transite par la route serveur de Diabia.
+- 10 appels sur 24 heures glissantes et 2 sur 60 secondes par compte authentifié ; les échecs et annulations consomment aussi une demande.
+- Plafond global toutes instances confondues : minimum des quotas de requêtes et de tokens, avec 20 % de marge (sauf plafond de requêtes égal à 1) et réservation pessimiste de 4096 tokens par appel (réponse limitée à 600 tokens ; prompts fixes courts).
+- Les quatre limites réelles doivent être renseignées. Fenêtres glissantes de 60 secondes et 24 heures pour protéger aussi les fenêtres calendaires du fournisseur.
+- Réservation atomique Redis, persistante après redémarrage, avant tout appel fournisseur. Pas de repli sur un compteur mémoire si Redis est indisponible. `429` et `Retry-After` lorsque le plafond est atteint.
+- Aucun retry automatique, fournisseur alternatif ni bascule payante. Utiliser un projet/compte API dédié : les appels effectués ailleurs ne sont pas comptabilisés par Diabia.
+- La configuration ne remplace pas les contrôles de facturation du fournisseur : vérifier le mode gratuit, désactiver toute recharge automatique et conserver des plafonds internes. Si Redis gratuit est épuisé, l'assistant se bloque.
+
+### Prérequis d'activation (non inclus dans l'application actuelle)
+
+1. Créer le compte Mistral en mode gratuit, vérifier l'accès au modèle et ses quotas ; renseigner `.env.local` **sur le serveur uniquement**. Désactiver l'utilisation des données pour l'entraînement dans les réglages API (séparés du Chat).
+2. Raccorder un Redis REST dédié, durable, sans éviction des clés de quota, partagé par toutes les instances. Ne jamais vider/restaurer un ancien compteur tant que la même clé fournisseur reste active dans la fenêtre des dernières 24 heures.
+3. Ajouter une authentification et une passerelle serveur. La passerelle vérifie la session réelle, retire tous les en-têtes `x-diabia-*` fournis par le client et injecte `x-diabia-user` (identifiant stable), `x-diabia-timestamp` (millisecondes) et `x-diabia-signature` (HMAC-SHA256 hex de `timestamp + '\n' + user`, avec `ASSISTANT_AUTH_SECRET`). Renouveler les en-têtes à chaque requête, jamais côté navigateur. L'API refuse les signatures de plus de 60 secondes. Aucun identifiant localStorage/cookie libre ni IP déclarée par le client n'est accepté comme compte.
+4. Vérifier le comportement avec deux comptes et plusieurs instances avant ouverture. Tant que cette connexion manque, toute demande valide reste bloquée (401). Tant que la configuration manque, aucun appel IA ne part (503).
+
+La création de comptes ne suffit pas à garantir une équité parfaite (comptes multiples), mais le plafond global protège le quota partagé.
+
+## Bilan et cadre réglementaire
+
+Voir [docs/PUBLICATION.md](docs/PUBLICATION.md) et [la recette manuelle](docs/TESTS-MANUELS.md) pour les fonctionnalités présentes, le reste à faire et les sources vérifiées le 14 novembre 2026. L'offre gratuite Mistral n'est **pas validée pour le traitement médical de Diabia**. Une offre européenne ou une désactivation de l'entraînement ne constitue pas une certification HDS ni une conformité RGPD globale.
 
 ## Vérifications
 
 ```bash
 npm test
-npm run lint
 npx tsc --noEmit
 npm run build
 ```
 
-## Architecture
+Architecture : `app/` pages et API ; `lib/analyses/` règles statistiques ; `lib/storage.ts` stockage, migration, export et suppression ; `lib/ia/cloud.ts` identité et quotas ; `tests/` régressions.
 
-- `app/` : pages, composants et route serveur de l’assistant ;
-- `lib/analyses/` : règles de statistiques, score, tendances et journal ;
-- `lib/storage.ts` : persistance locale, migration, export et suppression ;
-- `lib/glucoseUnits.ts` : conversion explicite des saisies vers le stockage interne en mg/dL ;
-- `lib/validation.ts` : validation des données issues du navigateur ;
-- `tests/` : tests de non-régression des règles principales.
+## Connexion et import des injections
 
-Les clés historiques `mesures`, `journal` et `profil` sont conservées. La version de stockage est suivie séparément afin de permettre des migrations non destructives. La version 2 ajoute un identifiant aux anciennes mesures et entrées du journal sans modifier leur contenu métier.
+La démonstration Sites utilise désormais un Worker pour `/api/session`, qui vérifie l’identité injectée par le proxy Sites. La page Compte explique la connexion ChatGPT, la récupération explicite de l’ancien historique et l’effacement de l’espace local actif. Aucun mot de passe Diabia n’est collecté, aucune base médicale distante n’est créée. Cette identité ne doit pas être acceptée depuis des en-têtes clients sur un autre hébergement non protégé.
 
-## Données et sécurité
+`npm run build:site` construit les pages exportées et les ressources embarquées dans `dist/server/index.js`. Les routes API Next de la source restent disponibles pour la construction serveur standard, mais ne sont pas intégrées à l’export du navigateur. Le script les remet en place même en cas d’échec ; une construction interrompue demande une récupération explicite de `.sites-build`.
 
-Les données restent dans le `localStorage` du navigateur. Le rapport synthétique est transmis uniquement à l’instance Ollama configurée lorsque l’utilisateur interroge l’assistant. La page Profil permet d’exporter ou de supprimer les données locales.
+L’import guidé conserve les injections du CSV sans créer de glycémie fictive. Il accepte un choix explicite des colonnes et refuse les débits U/h comme doses. Le fichier `public/examples/diabia-exemple.csv` est entièrement fictif ; il ne valide pas la compatibilité d’un appareil réel. La sauvegarde JSON version 3 inclut les injections indépendantes et accepte encore les anciennes versions.

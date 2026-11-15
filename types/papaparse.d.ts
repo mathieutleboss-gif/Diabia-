@@ -7,6 +7,7 @@ declare module "papaparse" {
 
   export type ParseConfig<T> = {
     header?: boolean;
+    worker?: boolean;
     complete?: (results: ParseResult<T>) => void;
     error?: (error: Error, file: File) => void;
   };

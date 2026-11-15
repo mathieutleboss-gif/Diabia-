@@ -1,3 +1,4 @@
+import { obtenirTimestamp } from "../dates";
 import type { Mesure } from "./types";
 
 export function analyserHoraires(mesures: Mesure[]) {
@@ -11,9 +12,11 @@ export function analyserHoraires(mesures: Mesure[]) {
   let nuit = 0;
 
   mesures.forEach((mesure) => {
-    if (Number(mesure.glycemie) <= 180 || !mesure.heure) return;
-
-    const heure = Number(mesure.heure.split(":")[0]);
+    if (!Number.isFinite(Number(mesure.glycemie)) || Number(mesure.glycemie) <= 180) return;
+    const timestamp = obtenirTimestamp(mesure);
+    const explicite = mesure.heure?.match(/^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/);
+    const heure = timestamp !== null ? new Date(timestamp).getHours() : explicite ? Number(explicite[1]) : NaN;
+    if (!Number.isFinite(heure) || heure < 0 || heure > 23) return;
     if (heure >= 6 && heure < 12) matin += 1;
     else if (heure >= 12 && heure < 18) midi += 1;
     else if (heure >= 18 && heure < 24) soir += 1;
@@ -29,7 +32,7 @@ export function analyserHoraires(mesures: Mesure[]) {
   const principale = periodes[0];
   const message = principale.valeur > 0
     ? `Les mesures supérieures à 180 mg/dL apparaissent principalement le ${principale.nom} (${principale.valeur} mesure(s)).`
-    : "Aucune période problématique détectée.";
+    : "Aucune période avec des valeurs supérieures à 180 mg/dL n’a été identifiée dans les horaires exploitables.";
 
   return { matin, midi, soir, nuit, message };
 }

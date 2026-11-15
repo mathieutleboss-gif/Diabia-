@@ -87,8 +87,8 @@ function statistiques(
     mesuresDatees: nombre,
     joursCouverts: jours,
     moyenne: arrondir(moyenne),
-    minimum: Math.min(...valeurs),
-    maximum: Math.max(...valeurs),
+    minimum: valeurs.reduce((min,value)=>Math.min(min,value),Infinity),
+    maximum: valeurs.reduce((max,value)=>Math.max(max,value),-Infinity),
     cible: pourcentage((value) => value >= 70 && value <= 180),
     hyper: pourcentage((value) => value > 180),
     hypo: pourcentage((value) => value < 70),
@@ -165,27 +165,33 @@ function analyserCorrelations(datees: MesureDatee[], journal: JournalEntry[]): C
   const groupes = new Map<string, JournalEntry[]>();
   journal.forEach((entree) => {
     const type = entree.type?.trim() || "Autre";
-    groupes.set(type, [...(groupes.get(type) || []), entree]);
+    const groupe = groupes.get(type);
+    if (groupe) groupe.push(entree); else groupes.set(type,[entree]);
   });
   const correlations: CorrelationJournal[] = [];
   groupes.forEach((entrees, type) => {
     const differences: number[] = [];
     const exemples: string[] = [];
+    const instants = new Set<number>();
+    const jours = new Set<string>();
     entrees.forEach((entree) => {
       const temps = obtenirTimestamp(entree);
-      if (temps === null) return;
+      if (temps === null || instants.has(temps)) return;
       const fenetre = fenetrePourType(type);
       const avant = datees.filter((m) => m.temps >= temps - fenetre.avant * 60 * 60 * 1_000 && m.temps < temps);
       const apres = datees.filter((m) => m.temps >= temps + fenetre.apresDebut * 60 * 60 * 1_000 && m.temps <= temps + fenetre.apresFin * 60 * 60 * 1_000);
       if (!avant.length || !apres.length) return;
       const moyenneAvant = avant.reduce((s, m) => s + m.valeur, 0) / avant.length;
       const moyenneApres = apres.reduce((s, m) => s + m.valeur, 0) / apres.length;
+      instants.add(temps);
+      const dateEvenement = new Date(temps);
+      jours.add(`${dateEvenement.getFullYear()}-${dateEvenement.getMonth()}-${dateEvenement.getDate()}`);
       differences.push(moyenneApres - moyenneAvant);
       if (exemples.length < 3) exemples.push(`${entree.description || type} : ${arrondir(moyenneAvant)} → ${arrondir(moyenneApres)} mg/dL`);
     });
     if (!differences.length) return;
     const difference = arrondir(differences.reduce((s, valeur) => s + valeur, 0) / differences.length);
-    const confiance = differences.length >= 5 ? "élevé" : differences.length >= 2 ? "modéré" : "faible";
+    const confiance = differences.length >= 5 && jours.size >= 3 ? "élevé" : differences.length >= 2 && jours.size >= 2 ? "modéré" : "faible";
     const direction = difference >= 15 ? `hausse moyenne de ${difference} mg/dL` : difference <= -15 ? `baisse moyenne de ${Math.abs(difference)} mg/dL` : `variation moyenne limitée (${difference > 0 ? "+" : ""}${difference} mg/dL)`;
     correlations.push({
       id: `journal-${type.toLocaleLowerCase("fr").replace(/\s+/g, "-")}`,
@@ -193,6 +199,7 @@ function analyserCorrelations(datees: MesureDatee[], journal: JournalEntry[]): C
       description: `${direction} dans la fenêtre observée après les événements « ${type} »`,
       nombreEvenements: entrees.length,
       evenementsExploitables: differences.length,
+      joursCouverts: jours.size,
       differenceMoyenne: difference,
       conclusion: `Association observée, sans preuve de causalité : ${direction}.`,
       preuves: exemples,
@@ -207,7 +214,8 @@ function analyserMotifs(datees: MesureDatee[], qualite: QualiteDonnees): Conclus
   datees.forEach((mesure) => {
     const heure = new Date(mesure.temps).getHours();
     const plage = heure < 6 ? "nuit (0 h–6 h)" : heure < 12 ? "matin (6 h–12 h)" : heure < 18 ? "après-midi (12 h–18 h)" : "soir (18 h–24 h)";
-    groupes.set(plage, [...(groupes.get(plage) || []), mesure]);
+    const groupe = groupes.get(plage);
+    if (groupe) groupe.push(mesure); else groupes.set(plage,[mesure]);
   });
   const motifsHoraires = Array.from(groupes.entries()).flatMap(([plage, mesures]) => {
     if (mesures.length < 3) return [];
@@ -229,7 +237,8 @@ function analyserMotifs(datees: MesureDatee[], qualite: QualiteDonnees): Conclus
   const groupesJours = new Map<string, MesureDatee[]>();
   datees.forEach((mesure) => {
     const jour = nomsJours[new Date(mesure.temps).getDay()];
-    groupesJours.set(jour, [...(groupesJours.get(jour) || []), mesure]);
+    const groupe = groupesJours.get(jour);
+    if (groupe) groupe.push(mesure); else groupesJours.set(jour,[mesure]);
   });
   const motifsJours = Array.from(groupesJours.entries()).flatMap(([jour, mesures]) => {
     if (mesures.length < 3) return [];
@@ -259,7 +268,7 @@ function alertesSecurite(datees: MesureDatee[]): AlerteSecurite[] {
     niveau: "urgente",
     titre: "Mesure(s) inférieure(s) à 54 mg/dL détectée(s)",
     message: "Une valeur très basse peut nécessiter une action immédiate selon ton plan personnel. En cas de confusion, perte de connaissance, convulsions ou impossibilité de te traiter, appelle les secours.",
-    preuves: [`${tresBasses.length} mesure(s), minimum ${Math.min(...tresBasses.map(({ valeur }) => valeur))} mg/dL`],
+    preuves: [`${tresBasses.length} mesure(s), minimum ${tresBasses.reduce((min,{valeur})=>Math.min(min,valeur),Infinity)} mg/dL`],
   });
   else if (basses.length) alertes.push({
     niveau: "vigilance",
@@ -271,7 +280,7 @@ function alertesSecurite(datees: MesureDatee[]): AlerteSecurite[] {
     niveau: "vigilance",
     titre: "Mesure(s) supérieure(s) à 250 mg/dL détectée(s)",
     message: "Si cette valeur persiste, si tu es malade ou si tu présentes des symptômes inhabituels, applique ton plan personnel de gestion des valeurs élevées et contacte un professionnel. La présence de cétones ou de symptômes sévères nécessite une aide urgente.",
-    preuves: [`${tresHautes.length} mesure(s), maximum ${Math.max(...tresHautes.map(({ valeur }) => valeur))} mg/dL`],
+    preuves: [`${tresHautes.length} mesure(s), maximum ${tresHautes.reduce((max,{valeur})=>Math.max(max,valeur),-Infinity)} mg/dL`],
   });
   return alertes;
 }
@@ -319,7 +328,7 @@ export function analyserDonneesAvancees(mesures: Mesure[], journal: JournalEntry
   });
 
   const causesProbables = correlations.filter(({ confiance, differenceMoyenne }) => confiance !== "faible" && differenceMoyenne !== null && Math.abs(differenceMoyenne) >= 15).map((correlation) =>
-    creerConclusion(`cause-${correlation.id}`, `Association avec ${correlation.typeEvenement}`, correlation.conclusion, correlation.preuves, correlation.confiance, correlation.evenementsExploitables, correlation.evenementsExploitables)
+    creerConclusion(`cause-${correlation.id}`, `Association avec ${correlation.typeEvenement}`, correlation.conclusion, correlation.preuves, correlation.confiance, correlation.evenementsExploitables, correlation.joursCouverts)
   );
   tendances.filter(({ id }) => id.startsWith("plage-")).forEach((motif) => causesProbables.push({ ...motif, id: `cause-${motif.id}`, conclusion: `Cette plage horaire est associée à davantage de valeurs hors zone. Les données ne permettent pas d’en déterminer seules la cause.` }));
 
