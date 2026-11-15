@@ -7,7 +7,7 @@
 - Catalogue de 15 fournisseurs avec catégories, liens et accès à confirmer ; aucun partenariat ni connexion active. Le connecteur de démonstration ne lit que des données synthétiques et ne comporte aucune commande d'insuline.
 - Modèle expérimental séparé pour glycémie, bolus, débit basal et glucides : unité canonique, instant UTC, fuseau IANA, provenance et identifiant externe. La fusion rejette une collision divergente et est idempotente pour un événement identique ; elle ne constitue pas encore une synchronisation persistante, transactionnelle ou multi-utilisateur.
 - Abstraction IA : simulation pré-écrite ; Anthropic, Vertex, OpenAI et fournisseur compatible sont des emplacements désactivés sans appels réseau. Aucun traitement de photographie ni estimation de repas réel n'est implémenté.
-- Nutrition fictive : recherche et code saisi, calcul d'une portion ; pas de caméra et pas de source réelle. Pages connexions, données, analyse IA et alimentation, sans fausse connexion.
+- Nutrition : le calculateur de la page Alimentation utilise maintenant le catalogue réel local ANSES Ciqual 2025 (3484 aliments), avec recherche, distinction cru/cuit et calcul du poids. Open Food Facts et les codes-barres réels restent indisponibles. Voir docs/CALCULATEUR-GLUCIDES.md. Pages connexions, données et analyse IA : statuts de simulation conservés.
 
 ## Audit et risques restants
 
