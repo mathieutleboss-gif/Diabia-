@@ -22,6 +22,11 @@ test('la lecture distante utilise l’identité vérifiée et ne suit jamais un 
  global.fetch=async(url)=>{if(String(url).endsWith('/rpc/diabia_session_active'))return Response.json(true);if(String(url).endsWith('/auth/v1/user'))return Response.json({id:'verified-A',email:'a@example.test'});assert.match(String(url),/user_id=eq.verified-A/);assert.ok(!String(url).includes('victim'));return Response.json([{revision:3,payload:null}]);};
  try{const r=await cloudRoute(request('/api/sync?user_id=victim','GET',undefined,{cookie:'__Host-diabia-access=token','X-Diabia-Account':'verified-A'}),env);assert.equal(r.status,200);assert.equal((await r.json()).revision,3);}finally{global.fetch=original;}
 });
+test('un onglet resté sur un autre compte ne peut ni lire ni écrire les données',async()=>{
+ const original=global.fetch;let storageCalls=0;
+ global.fetch=async url=>{if(String(url).endsWith('/rpc/diabia_session_active'))return Response.json(true);if(String(url).endsWith('/auth/v1/user'))return Response.json({id:'compte-B',email:'b@example.test'});storageCalls++;throw new Error('aucun accès aux données attendu');};
+ try{for(const method of ['GET','PUT']){const response=await cloudRoute(request('/api/sync',method,method==='PUT'?{revision:0,payload:{version:3,mesures:[],injections:[],journal:[],profil:{}}}:undefined,{cookie:'__Host-diabia-access=token','X-Diabia-Account':'compte-A'}),env);assert.equal(response.status,409);assert.equal((await response.json()).accountMismatch,true);}assert.equal(storageCalls,0);}finally{global.fetch=original;}
+});
 test('un conflit de révision n’est pas remplacé par une réussite et les tokens ne sont pas exposés',async()=>{
  const original=global.fetch;
  global.fetch=async(url,options)=>{if(String(url).endsWith('/rpc/diabia_session_active'))return Response.json(true);if(String(url).endsWith('/auth/v1/user'))return Response.json({id:'A',email:'a@example.test'});assert.ok(String(url).includes('/rpc/diabia_sync_write'));const b=JSON.parse(options.body);assert.equal(b.expected_revision,2);assert.equal(b.user_id,undefined);return Response.json({conflict:true});};
