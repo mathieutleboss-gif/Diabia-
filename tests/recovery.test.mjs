@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cloudRoute} from '../worker/diabia-cloud.mjs';
-const env={DIABIA_SUPABASE_URL:'https://auth.example.test',DIABIA_SUPABASE_KEY:'test-publishable'};
+const env={DIABIA_SUPABASE_URL:'https://auth.example.test',DIABIA_SUPABASE_KEY:'test-publishable',DIABIA_PUBLIC_APP_URL:'https://diabia.example.test'};
 const origin='https://diabia.example.test';
 const password='a-new-fictional-password';
 const hash='synthetic-recovery-proof-00001';
@@ -12,6 +12,13 @@ test('la demande utilise la page dédiée et une réponse neutre sans divulguer 
 });
 test('un code de récupération ancien n’est pas consommé par la page callback',async()=>{
  const original=global.fetch;global.fetch=async()=>{throw Error('pas de réseau');};try{const r=await cloudRoute(req('/api/auth/exchange',{code:'fictif'},'__Host-diabia-pkce=verifier; __Host-diabia-flow=recovery'),env);assert.equal(r.status,200);assert.equal((await r.json()).recovery,true);assert.equal(r.headers.getSetCookie().length,0);}finally{global.fetch=original;}
+});
+test('un hôte interne localhost ou un en-tête proxy ne devient jamais la destination email',async()=>{
+ const original=global.fetch;let calls=0;global.fetch=async url=>{calls++;assert.equal(new URL(url).searchParams.get('redirect_to'),'https://diabia-demo.validpika65.chatgpt.site/account/reset-password/');return Response.json({});};
+ try{const e={...env};delete e.DIABIA_PUBLIC_APP_URL;const request=new Request('http://localhost:3000/api/auth/recover',{method:'POST',headers:{origin:'http://localhost:3000','content-type':'application/json','x-forwarded-host':'evil.example.test'},body:JSON.stringify({email:'fictif@example.test'})});assert.equal((await cloudRoute(request,e)).status,200);assert.equal(calls,1);}finally{global.fetch=original;}
+});
+test('une URL email locale ou mal formée bloque l’envoi au lieu de générer un mauvais lien',async()=>{
+ const original=global.fetch;let calls=0;global.fetch=async()=>{calls++;throw Error();};try{for(const url of ['http://localhost:3000','https://localhost','https://127.0.0.1','https://diabia.example.test/path','https://user:pass@example.test','not-a-url'])assert.equal((await cloudRoute(req('/api/auth/recover',{email:'fictif@example.test'}),{...env,DIABIA_PUBLIC_APP_URL:url})).status,503);assert.equal(calls,0);}finally{global.fetch=original;}
 });
 test('une adresse inconnue reçoit la même réponse neutre',async()=>{
  const original=global.fetch;try{for(const status of [200,400,404,422]){global.fetch=async()=>Response.json({}, {status});const r=await cloudRoute(req('/api/auth/recover',{email:'fictif@example.test'}),env);assert.equal(r.status,200);assert.deepEqual(await r.json(),{ok:true,confirmationRequired:true,recovery:true});}}finally{global.fetch=original;}

@@ -17,6 +17,8 @@ async function body(request,max=16000){const reader=request.body?.getReader();if
 function accountGuard(request,session){const expected=request.headers.get('X-Diabia-Account');if(!expected)return json({error:'Le compte doit être revérifié avant cette opération.',accountMismatch:true},409,session.set);return expected===session.user.id?null:json({error:'Le compte connecté a changé. Reconnecte-toi avant de continuer.',accountMismatch:true},409,session.set);}
 function email(value){return typeof value==='string'&&value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function password(value){return typeof value==='string'&&value.length>=12&&value.length<=256;}
+// Verified live Sites origin. Email destinations must not depend on an internal proxy host.
+function publicAppOrigin(env){const u=new URL(env.DIABIA_PUBLIC_APP_URL||'https://diabia-demo.validpika65.chatgpt.site');if(u.protocol!=='https:'||u.username||u.password||u.pathname!=='/'||u.search||u.hash||u.hostname==='localhost'||u.hostname.endsWith('.localhost')||u.hostname==='[::1]'||u.hostname.startsWith('127.')||u.hostname==='0.0.0.0')throw new Error('URL publique invalide');return u.origin;}
 function b64(bytes){return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
 async function challenge(){const verifier=b64(crypto.getRandomValues(new Uint8Array(32)));const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier));return{verifier,challenge:b64(new Uint8Array(hash))};}
 function validSnapshot(d){return d&&typeof d==='object'&&!Array.isArray(d)&&[1,2,3].includes(d.version)&&Array.isArray(d.mesures)&&Array.isArray(d.journal)&&(d.injections===undefined||Array.isArray(d.injections))&&d.profil&&typeof d.profil==='object'&&!Array.isArray(d.profil);}
@@ -130,7 +132,7 @@ export async function cloudRoute(request,env){
   }
   if((p==='/api/auth/signup'||p==='/api/auth/recover')&&request.method==='POST'){
    const d=await body(request);if(!email(d.email)||p.endsWith('signup')&&!password(d.password))return json({error:'Adresse e-mail valide et mot de passe d’au moins 12 caractères requis.'},400);
-   const recover=p.endsWith('recover'),pk=await challenge(),redirect=`${url.origin}/account/${recover?'reset-password':'callback'}/`;
+   const recover=p.endsWith('recover'),pk=await challenge(),redirect=`${publicAppOrigin(env)}/account/${recover?'reset-password':'callback'}/`;
    const r=await backend(c,`/auth/v1/${recover?'recover':'signup'}?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:{email:d.email.trim(),...(!recover?{password:d.password}:{}),code_challenge:pk.challenge,code_challenge_method:'s256'}});
    if(!r.ok){if(recover&&[400,404,422].includes(r.status))return json({ok:true,confirmationRequired:true,recovery:true},200,[cookie(PK,pk.verifier,600),cookie(FLOW,'recovery',600)]);return json({error:r.status===429?'Limite d’envoi atteinte. Réessaie plus tard.':'Le service n’a pas pu traiter la demande. Vérifie sa configuration.'},r.status===429?429:502);}
    const data=await r.json();if(!recover&&data.access_token)return json({ok:true,confirmationRequired:false},200,tokens(data));
