@@ -3,6 +3,7 @@ import {createContext,useContext,useEffect,useRef,useState} from "react";
 import {useSessionDiabia} from "./SessionProvider";
 import {espaceCompteActif,exporterDonneesLocales,lireValeurLocale,restaurerDonneesLocales,sauvegarderLocal} from "../../lib/storage";
 import {sauvegardeValide} from "../../lib/sauvegarde";
+import {peutRecupererSansConflit} from '../../lib/sync';
 type Snapshot=ReturnType<typeof exporterDonneesLocales>;
 type Remote={revision:number;payload:Snapshot|null;deleted?:boolean};
 type SyncState={status:string;error:string;busy:boolean;conflict:boolean;enabled:boolean;save:()=>Promise<void>;download:()=>Promise<void>;check:()=>Promise<void>};
@@ -35,9 +36,12 @@ export default function CloudSync({children}:{children:React.ReactNode}){
    if(current!==before||edits.current!==version||s.paused){pause('Modifications locales conservées : choisis la version à garder');return;}
    if(r.payload&&vide(local)){if(!restaurerDonneesLocales(r.payload))throw Error('Restauration impossible.');s.saved=signature(exporterDonneesLocales());await mark(r.revision,s.saved,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Données récupérées depuis ton compte');else pause('Modifications locales conservées après récupération');}}
    else if(r.payload&&signature(r.payload)===current){s.saved=current;await mark(r.revision,current,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Données à jour');else pause('Modifications locales en attente');}}
-   else if(!r.revision){s.dirty=current!==s.saved;setStatus('Prêt à sauvegarder tes données sur ton compte');}
+   else if(!r.revision){s.dirty=!vide(local);setStatus('Prêt à sauvegarder tes données sur ton compte');if(s.dirty)queue();}
    else{let meta:{revision?:number;digest?:string}={};try{meta=JSON.parse(lireValeurLocale('diabia_sync_meta','{}'));}catch{}const digest=await empreinte(current);if(!valid(g))return;
-    if(meta.revision===r.revision&&meta.digest===digest){s.saved=current;clean('Données à jour');}else pause(r.deleted?'La sauvegarde distante a été supprimée':'Versions différentes sur les appareils');}
+    if(signature(exporterDonneesLocales())!==current||edits.current!==version){pause('Modifications locales conservées pendant la vérification');return;}
+    if(meta.revision===r.revision&&meta.digest===digest){s.saved=current;clean('Données à jour');}
+    else if(r.payload&&peutRecupererSansConflit(meta,r.revision,digest)){if(!restaurerDonneesLocales(r.payload))throw Error('Récupération impossible. Les données locales sont conservées.');s.saved=signature(exporterDonneesLocales());await mark(r.revision,s.saved,g);if(valid(g)){if(signature(exporterDonneesLocales())===s.saved)clean('Nouvelle version récupérée depuis ton autre appareil');else pause('Modifications locales conservées après récupération');}}
+    else pause(r.deleted?'La sauvegarde distante a été supprimée':'Versions différentes sur les appareils');}
   }catch(e){if(valid(g))setError(e instanceof Error?e.message:'Synchronisation impossible.');}
   finally{if(valid(g)){s.running=false;setBusy(false);}}
  }
@@ -64,7 +68,7 @@ export default function CloudSync({children}:{children:React.ReactNode}){
   void actions.current.check();
   function change(event:Event){edits.current++;if(event instanceof CustomEvent&&event.detail?.action==='clear-local'){pause('Données locales effacées : synchronisation mise en pause');return;}try{state.current.dirty=signature(exporterDonneesLocales())!==state.current.saved;if(state.current.dirty&&!state.current.running)queue();}catch{}}
   function storage(event:StorageEvent){const prefix=`diabia:compte:${encodeURIComponent(namespace)}:`;if(event.key!==null&&!event.key.startsWith(prefix))return;if(event.key?.endsWith('diabia_sync_meta')||event.key?.endsWith('diabia_storage_probe'))return;if(event.newValue===null){edits.current++;pause('Données effacées dans un autre onglet : synchronisation mise en pause');return;}change(event);}
-  function focus(){if(!state.current.dirty&&!state.current.paused)void actions.current.check();}
+  function focus(){if(state.current.paused)return;if(state.current.remote===null||!state.current.dirty)void actions.current.check();else queue();}
   window.addEventListener('diabia:storage',change);window.addEventListener('storage',storage);window.addEventListener('focus',focus);window.addEventListener('online',focus);
   return()=>{state.current.active=false;state.current.generation++;clearTimeout(timer.current);window.removeEventListener('diabia:storage',change);window.removeEventListener('storage',storage);window.removeEventListener('focus',focus);window.removeEventListener('online',focus);};
  },[enabled,user?.id]);

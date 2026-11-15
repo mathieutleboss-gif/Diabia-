@@ -1,3 +1,4 @@
+-- Version aligned with the already-applied remote migration history.
 -- À appliquer uniquement au projet autorisé pour les données visées.
 create table if not exists public.diabia_snapshots (
   user_id uuid primary key references auth.users(id) on delete cascade,
